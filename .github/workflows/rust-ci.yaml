@@ -32,17 +32,17 @@ concurrency:
       test_matrix_build_args:
         description: "Matrix args for the `cargo build` called in the job. Defaults to nothing, mostly useful in includes."
         required: false
-        default: "[]"
+        default: '[""]'
         type: string
       test_matrix_test_args:
         description: "Matrix args for the `cargo test` called in the job. Defaults to nothing, mostly useful in includes."
         required: false
-        default: "[]"
+        default: '[""]'
         type: string
       test_matrix_rust_target:
         description: "Matrix of rust targets for a build. Defaults to nothing (which will use the system target). Mostly useful in includes."
         required: false
-        default: "[]"
+        default: '[""]'
         type: string
       test_matrix_include:
         description: 'Specific combinations to add to the test matrix. Defaults to "[{ rust_version: "", build_only: false }]" which will build and run tests using the toolchain version. Available values are: rust_version, build_only, build_args, test_args'
@@ -56,9 +56,6 @@ concurrency:
       SCCACHE_AWS_SECRET:
         description: "AWS secret key to access our sccache S3 bucket."
         required: true
-      # GITHUB_TOKEN:
-      #   description: "GitHub token with permission to check out and post comments to the current repo. Used by the coverage action."
-      #   required: true
 
 jobs:
   cargo-test:
@@ -177,7 +174,6 @@ jobs:
         with:
           components: clippy
       - uses: actions-rs/cargo@v1
-        if: env.clippy_args != ''
         with:
           command: clippy
           args: "-- -D warnings"
