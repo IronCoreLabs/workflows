@@ -1,0 +1,177 @@
+# CI for Rust projects. This compiles (using sccache), runs tests, and checks formatting.
+
+# Customization:
+# - Add any necessary setup steps after "Setup sccache env variables". Use jsonpatch path /jobs/cargo-test/steps/5.
+# - Add additional rust versions using jsonpatch path /jobs/cargo-test/strategy/matrix/rust_version/-.
+
+name: Rust CI
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+'on':
+  workflow_call:
+    inputs:
+      minimum_coverage:
+        type: string
+        default: "24"
+        required: false
+      run_clippy:
+        type: boolean
+        default: false
+        required: false
+      test_matrix_rust_version:
+        description: 'A JS array list of versions to be included in the test matrix. Defaults to "["beta"]".'
+        required: false
+        default: '["beta"]'
+      test_matrix_build_only:
+        description: 'Whether to build only or build and test. Defaults to "[false]" on the assumption tests are only desired on the main version defined in `include`.'
+        required: false
+        default: "[false]"
+      test_matrix_build_args:
+        description: "Matrix args for the `cargo build` called in the job. Defaults to nothing, mostly useful in includes."
+        required: false
+        default: "[]"
+      test_matrix_test_args:
+        description: "Matrix args for the `cargo test` called in the job. Defaults to nothing, mostly useful in includes."
+        required: false
+        default: "[]"
+      test_matrix_rust_target:
+        description: "Matrix of rust targets for a build. Defaults to nothing (which will use the system target). Mostly useful in includes."
+        required: false
+        default: "[]"
+      test_matrix_include:
+        description: 'Specific combinations to add to the test matrix. Defaults to "[{ rust_version: "", build_only: false }]" which will build and run tests using the toolchain version. Available values are: rust_version, build_only, build_args, test_args'
+        required: false
+        default: '[{ rust_version: "", build_only: false }]'
+    secrets:
+      TOOL_CACHE_SECRET_KEY:
+        description: "AWS secret key to access our Rust tool cache S3 bucket."
+        required: true
+      SCCACHE_AWS_SECRET:
+        description: "AWS secret key to access our sccache S3 bucket."
+        required: true
+      GITHUB_TOKEN:
+        description: "GitHub token with permission to check out and post comments to the current repo. Used by the coverage action."
+        required: true
+
+jobs:
+  cargo-test:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        rust_version: "${{ fromJSON(inputs.test_matrix_rust_version) }}"
+        build_only: "${{ fromJSON(inputs.test_matrix_build_only) }}"
+        build_args: "${{ fromJSON(inputs.test_matrix_build_args) }}"
+        test_args: "${{ fromJSON(inputs.test_matrix_test_args) }}"
+        rust_target: "${{ fromJSON(inputs.test_matrix_rust_target) }}"
+        include: ${{ fromJSON(inputs.test_matrix_include) }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: IronCoreLabs/rust-toolchain@v1
+        if: ${{ matrix.rust_version != '' }}
+        with:
+          toolchain: ${{ matrix.rust_version }}
+      - uses: IronCoreLabs/rust-toolchain@v1
+        if: ${{ matrix.rust_version == '' }}
+      - name: Install sccache
+        uses: IronCoreLabs/rust-install@v0.1.0
+        with:
+          crate: sccache
+          accesskey: AKIAU2WBY6VDTC563V7G
+          secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
+          os: ubuntu-22.04
+          version: latest
+      - name: Setup sccache env variables
+        run: |
+          echo "CC=$(which cc)" >> $GITHUB_ENV
+          echo "RUSTC_WRAPPER=$HOME/.cargo/bin/sccache" >> $GITHUB_ENV
+          echo "AWS_ACCESS_KEY_ID=AKIAU2WBY6VDVHUO5WSN" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }}" >> $GITHUB_ENV
+          echo "SCCACHE_BUCKET=sccache-rust" >> $GITHUB_ENV
+          echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build ${{ matrix.build_args }}
+      - if: ${{ !matrix.build_only }}
+        run: cargo test ${{ matrix.test_args }}
+      - name: Print sccache stats
+        run: sccache -s
+
+  coverage:
+    runs-on: ubuntu-22.04
+    if: github.actor != 'dependabot[bot]' && github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v3
+      - uses: IronCoreLabs/rust-toolchain@v1
+      - name: Install sccache
+        uses: IronCoreLabs/rust-install@v0.1.0
+        with:
+          crate: sccache
+          accesskey: AKIAU2WBY6VDTC563V7G
+          secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
+          os: ubuntu-22.04
+          version: latest
+      - name: Setup sccache env variables
+        run: |
+          echo "CC=$(which cc)" >> $GITHUB_ENV
+          echo "RUSTC_WRAPPER=$HOME/.cargo/bin/sccache" >> $GITHUB_ENV
+          echo "AWS_ACCESS_KEY_ID=AKIAU2WBY6VDVHUO5WSN" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }}" >> $GITHUB_ENV
+          echo "SCCACHE_BUCKET=sccache-rust" >> $GITHUB_ENV
+          echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Run llvm-cov
+        run: cargo llvm-cov --html
+      - name: Get Cobertura report as well
+        run: cargo llvm-cov report --cobertura --output-path cobertura.xml
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v3
+        with:
+          name: code-coverage-report
+          path: target/llvm-cov/html/
+      - name: Post code coverage to PR comment
+        if: ${{ github.base_ref != '' }}
+        uses: 5monkeys/cobertura-action@v13
+        with:
+          path: cobertura.xml
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          only_changed_files: true
+          show_line: true
+          # increase as we are able
+          minimum_coverage: ${{ inputs.minimum_coverage }}
+
+  format:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: IronCoreLabs/rust-toolchain@v1
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+      - name: Install cargo-sort
+        uses: IronCoreLabs/rust-install@v0.1.0
+        with:
+          crate: cargo-sort
+          accesskey: AKIAU2WBY6VDTC563V7G
+          secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
+          os: ubuntu-22.04
+          version: latest
+      - run: cargo sort --check
+      - name: Cancel workflow
+        if: failure()
+        uses: andymckay/cancel-action@0.3
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-22.04
+    if: inputs.run_clippy == true
+    steps:
+      - uses: actions/checkout@v3
+      - uses: IronCoreLabs/rust-toolchain@v1
+        with:
+          components: clippy
+      - uses: actions-rs/cargo@v1
+        if: env.clippy_args != ''
+        with:
+          command: clippy
+          args: "-- -D warnings"
