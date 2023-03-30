@@ -1,0 +1,20 @@
+# We use this to test the rust-ci workflow.
+name: Rust CI
+
+on:
+  push:
+    branches:
+    - main
+  pull_request: null
+  workflow_dispatch: null
+  schedule:
+  - cron: 0 14 * * 1
+
+jobs:
+  invoke:
+    name: Rust CI
+    uses: ./.github/workflows/rust-ci.yaml
+    with:
+      run_clippy: true
+      rust_root: test/rust
+    secrets: inherit
