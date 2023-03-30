@@ -27,7 +27,7 @@ concurrency:
       test_matrix_build_only:
         description: 'Whether to build only or build and test. Defaults to "[false]" on the assumption tests are only desired on the main version defined in `include`.'
         required: false
-        default: "[false]"
+        default: "[true]"
         type: string
       test_matrix_build_args:
         description: "Matrix args for the `cargo build` called in the job. Defaults to nothing, mostly useful in includes."
