@@ -22,7 +22,7 @@ concurrency:
       rust_root:
         description: Root of the rust code tree. May be a relative path.
         type: string
-        default: "${{ github.workspace }}"
+        default: "${GITHUB_WORKSPACE}"
         required: false
       test_matrix_rust_version:
         description: 'A JS array list of versions to be included in the test matrix. Defaults to "["beta"]".'
