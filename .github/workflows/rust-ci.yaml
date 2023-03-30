@@ -23,26 +23,32 @@ concurrency:
         description: 'A JS array list of versions to be included in the test matrix. Defaults to "["beta"]".'
         required: false
         default: '["beta"]'
+        type: string
       test_matrix_build_only:
         description: 'Whether to build only or build and test. Defaults to "[false]" on the assumption tests are only desired on the main version defined in `include`.'
         required: false
         default: "[false]"
+        type: string
       test_matrix_build_args:
         description: "Matrix args for the `cargo build` called in the job. Defaults to nothing, mostly useful in includes."
         required: false
         default: "[]"
+        type: string
       test_matrix_test_args:
         description: "Matrix args for the `cargo test` called in the job. Defaults to nothing, mostly useful in includes."
         required: false
         default: "[]"
+        type: string
       test_matrix_rust_target:
         description: "Matrix of rust targets for a build. Defaults to nothing (which will use the system target). Mostly useful in includes."
         required: false
         default: "[]"
+        type: string
       test_matrix_include:
         description: 'Specific combinations to add to the test matrix. Defaults to "[{ rust_version: "", build_only: false }]" which will build and run tests using the toolchain version. Available values are: rust_version, build_only, build_args, test_args'
         required: false
         default: '[{ rust_version: "", build_only: false }]'
+        type: string
     secrets:
       TOOL_CACHE_SECRET_KEY:
         description: "AWS secret key to access our Rust tool cache S3 bucket."
