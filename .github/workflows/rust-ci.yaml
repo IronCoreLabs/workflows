@@ -49,6 +49,11 @@ concurrency:
         required: false
         default: '[{ rust_version: "", build_only: false }]'
         type: string
+      additional_system_deps:
+        description: 'A single string of additional dependencies to install on the ubuntu runner using `apt`, ex "libzmq3-dev openssl".'
+        type: string
+        required: false
+        default: ""
     secrets:
       TOOL_CACHE_SECRET_KEY:
         description: "AWS secret key to access our Rust tool cache S3 bucket."
@@ -70,6 +75,9 @@ jobs:
         include: ${{ fromJSON(inputs.test_matrix_include) }}
     steps:
       - uses: actions/checkout@v3
+      - name: Install additional dependencies
+        if: ${{ inputs.additional_system_deps }}
+        run: sudo apt install ${{ inputs.additional_system_deps }}
       - uses: IronCoreLabs/rust-toolchain@v1
         if: ${{ matrix.rust_version != '' }}
         with:
@@ -167,7 +175,7 @@ jobs:
   clippy:
     name: Clippy
     runs-on: ubuntu-22.04
-    if: inputs.run_clippy == true
+    if: inputs.run_clippy
     steps:
       - uses: actions/checkout@v3
       - uses: IronCoreLabs/rust-toolchain@v1
