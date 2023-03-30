@@ -75,6 +75,7 @@ jobs:
     steps:
     - id: rust_root
       run: |
+        set -x
         if [ -n "${{ inputs.rust_root }}" ] ; then
           root="${{ github.workspace }}"
         else
