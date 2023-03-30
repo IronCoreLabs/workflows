@@ -56,9 +56,9 @@ concurrency:
       SCCACHE_AWS_SECRET:
         description: "AWS secret key to access our sccache S3 bucket."
         required: true
-      GITHUB_TOKEN:
-        description: "GitHub token with permission to check out and post comments to the current repo. Used by the coverage action."
-        required: true
+      # GITHUB_TOKEN:
+      #   description: "GitHub token with permission to check out and post comments to the current repo. Used by the coverage action."
+      #   required: true
 
 jobs:
   cargo-test:
