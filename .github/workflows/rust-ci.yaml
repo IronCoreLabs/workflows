@@ -19,6 +19,11 @@ concurrency:
         type: boolean
         default: false
         required: false
+      rust_root:
+        description: Root of the rust code tree. May be a relative path.
+        type: string
+        default: "${{ github.workspace }}"
+        required: false
       test_matrix_rust_version:
         description: 'A JS array list of versions to be included in the test matrix. Defaults to "["beta"]".'
         required: false
@@ -76,6 +81,7 @@ jobs:
           toolchain: ${{ matrix.rust_version }}
       - uses: IronCoreLabs/rust-toolchain@v1
         if: ${{ matrix.rust_version == '' }}
+        # TODO Set working directory.
       - name: Install sccache
         uses: IronCoreLabs/rust-install@v0.1.0
         with:
@@ -94,8 +100,10 @@ jobs:
           echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
       - uses: Swatinem/rust-cache@v2
       - run: cargo build ${{ matrix.build_args }}
+        working-directory: ${{ inputs.rust_root }}
       - if: ${{ !matrix.build_only }}
         run: cargo test ${{ matrix.test_args }}
+        working-directory: ${{ inputs.rust_root }}
       - name: Print sccache stats
         run: sccache -s
 
@@ -125,18 +133,20 @@ jobs:
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Run llvm-cov
         run: cargo llvm-cov --html
+        working-directory: ${{ inputs.rust_root }}
       - name: Get Cobertura report as well
         run: cargo llvm-cov report --cobertura --output-path cobertura.xml
+        working-directory: ${{ inputs.rust_root }}
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
           name: code-coverage-report
-          path: target/llvm-cov/html/
+          path: ${{ inputs.rust_root }}/target/llvm-cov/html/
       - name: Post code coverage to PR comment
         if: ${{ github.base_ref != '' }}
         uses: 5monkeys/cobertura-action@v13
         with:
-          path: cobertura.xml
+          path: ${{ inputs.rust_root }}/cobertura.xml
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           only_changed_files: true
           show_line: true
@@ -151,6 +161,7 @@ jobs:
         with:
           components: rustfmt
       - run: cargo fmt --all -- --check
+        working-directory: ${{ inputs.rust_root }}
       - name: Install cargo-sort
         uses: IronCoreLabs/rust-install@v0.1.0
         with:
@@ -160,6 +171,7 @@ jobs:
           os: ubuntu-22.04
           version: latest
       - run: cargo sort --check
+        working-directory: ${{ inputs.rust_root }}
       - name: Cancel workflow
         if: failure()
         uses: andymckay/cancel-action@0.3
@@ -173,7 +185,5 @@ jobs:
       - uses: IronCoreLabs/rust-toolchain@v1
         with:
           components: clippy
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: "-- -D warnings"
+      - run: cargo clippy -- -D warnings
+        working-directory: ${{ inputs.rust_root }}
