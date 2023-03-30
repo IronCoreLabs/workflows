@@ -69,7 +69,7 @@ concurrency:
 
 jobs:
   cargo-test:
-    runs-on: ubuntu-22.04
+    runs-on: buildjet-2vcpu-ubuntu-2204
     strategy:
       matrix:
         rust_version: "${{ fromJSON(inputs.test_matrix_rust_version) }}"
@@ -95,7 +95,7 @@ jobs:
           crate: sccache
           accesskey: AKIAU2WBY6VDTC563V7G
           secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
-          os: ubuntu-22.04
+          os: buildjet-2vcpu-ubuntu-2204
           version: latest
       - name: Setup sccache env variables
         run: |
@@ -115,7 +115,7 @@ jobs:
         run: sccache -s
 
   coverage:
-    runs-on: ubuntu-22.04
+    runs-on: buildjet-2vcpu-ubuntu-2204
     if: github.actor != 'dependabot[bot]' && github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v3
@@ -129,7 +129,7 @@ jobs:
           crate: sccache
           accesskey: AKIAU2WBY6VDTC563V7G
           secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
-          os: ubuntu-22.04
+          os: buildjet-2vcpu-ubuntu-2204
           version: latest
       - name: Setup sccache env variables
         run: |
@@ -164,7 +164,7 @@ jobs:
           minimum_coverage: ${{ inputs.minimum_coverage }}
 
   format:
-    runs-on: ubuntu-22.04
+    runs-on: buildjet-2vcpu-ubuntu-2204
     steps:
       - uses: actions/checkout@v3
       - uses: IronCoreLabs/rust-toolchain@v1
@@ -178,7 +178,7 @@ jobs:
           crate: cargo-sort
           accesskey: AKIAU2WBY6VDTC563V7G
           secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
-          os: ubuntu-22.04
+          os: buildjet-2vcpu-ubuntu-2204
           version: latest
       - run: cargo sort --check
         working-directory: ${{ inputs.rust_root }}
@@ -188,7 +188,7 @@ jobs:
 
   clippy:
     name: Clippy
-    runs-on: ubuntu-22.04
+    runs-on: buildjet-2vcpu-ubuntu-2204
     if: inputs.run_clippy
     steps:
       - uses: actions/checkout@v3
