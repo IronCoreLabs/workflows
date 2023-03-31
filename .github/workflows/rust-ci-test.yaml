@@ -20,6 +20,6 @@ jobs:
       test_matrix_include: |
         [
           { rust_version: "", build_only: false },
-          { rust_version: "stable", rust_target: "wasm32-unknown-unknown"}
+          { rust_version: "stable", rust_target: "wasm32-unknown-unknown", build_only: true }
         ]
     secrets: inherit

@@ -127,6 +127,8 @@ jobs:
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - if: ${{ !matrix.build_only }}
         run: cargo test ${{ matrix.test_args }}
+      - if: ${{ !matrix.build_only && matrix.rust_target != '' }}
+        run: cargo test ${{ matrix.test_args }} --target=${{ matrix.rust_target }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Print sccache stats
         run: sccache -s
