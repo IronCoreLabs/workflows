@@ -22,7 +22,6 @@ concurrency:
       rust_root:
         description: Root of the rust code tree. May be a relative path.
         type: string
-        default: "${{ github.workspace }}"
         required: false
       test_matrix_rust_version:
         description: 'A JS array list of versions to be included in the test matrix. Defaults to "["beta"]".'
@@ -68,8 +67,25 @@ concurrency:
         required: true
 
 jobs:
+  # Assigns some variables, because GHA doesn't expand variables in inputs.*.default.
+  vars:
+    runs-on: buildjet-2vcpu-ubuntu-2204
+    outputs:
+      rust_root: ${{ steps.rust_root.outputs.rust_root }}
+    steps:
+    - id: rust_root
+      run: |
+        set -x
+        if [ -n "${{ inputs.rust_root }}" ] ; then
+          root="${{ inputs.rust_root }}"
+        else
+          root="${{ github.workspace }}"
+        fi
+        echo "rust_root=$root" >> $GITHUB_OUTPUT
+
   cargo-test:
     runs-on: buildjet-2vcpu-ubuntu-2204
+    needs: vars
     strategy:
       matrix:
         rust_version: "${{ fromJSON(inputs.test_matrix_rust_version) }}"
@@ -107,15 +123,16 @@ jobs:
           echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
       - uses: Swatinem/rust-cache@v2
       - run: cargo build ${{ matrix.build_args }}
-        working-directory: ${{ inputs.rust_root }}
+        working-directory: ${{ needs.vars.outputs.rust_root }}
       - if: ${{ !matrix.build_only }}
         run: cargo test ${{ matrix.test_args }}
-        working-directory: ${{ inputs.rust_root }}
+        working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Print sccache stats
         run: sccache -s
 
   coverage:
     runs-on: buildjet-2vcpu-ubuntu-2204
+    needs: vars
     if: github.actor != 'dependabot[bot]' && github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v3
@@ -143,20 +160,20 @@ jobs:
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Run llvm-cov
         run: cargo llvm-cov --html
-        working-directory: ${{ inputs.rust_root }}
+        working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Get Cobertura report as well
         run: cargo llvm-cov report --cobertura --output-path cobertura.xml
-        working-directory: ${{ inputs.rust_root }}
+        working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
         with:
           name: code-coverage-report
-          path: ${{ inputs.rust_root }}/target/llvm-cov/html/
+          path: ${{ needs.vars.outputs.rust_root }}/target/llvm-cov/html/
       - name: Post code coverage to PR comment
         if: ${{ github.base_ref != '' }}
         uses: 5monkeys/cobertura-action@v13
         with:
-          path: ${{ inputs.rust_root }}/cobertura.xml
+          path: ${{ needs.vars.outputs.rust_root }}/cobertura.xml
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           only_changed_files: true
           show_line: true
@@ -165,13 +182,14 @@ jobs:
 
   format:
     runs-on: buildjet-2vcpu-ubuntu-2204
+    needs: vars
     steps:
       - uses: actions/checkout@v3
       - uses: IronCoreLabs/rust-toolchain@v1
         with:
           components: rustfmt
       - run: cargo fmt --all -- --check
-        working-directory: ${{ inputs.rust_root }}
+        working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Install cargo-sort
         uses: IronCoreLabs/rust-install@v0.1.0
         with:
@@ -181,7 +199,7 @@ jobs:
           os: buildjet-2vcpu-ubuntu-2204
           version: latest
       - run: cargo sort --check
-        working-directory: ${{ inputs.rust_root }}
+        working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Cancel workflow
         if: failure()
         uses: andymckay/cancel-action@0.3
@@ -189,6 +207,7 @@ jobs:
   clippy:
     name: Clippy
     runs-on: buildjet-2vcpu-ubuntu-2204
+    needs: vars
     if: inputs.run_clippy
     steps:
       - uses: actions/checkout@v3
@@ -199,4 +218,4 @@ jobs:
         with:
           components: clippy
       - run: cargo clippy -- -D warnings
-        working-directory: ${{ inputs.rust_root }}
+        working-directory: ${{ needs.vars.outputs.rust_root }}
