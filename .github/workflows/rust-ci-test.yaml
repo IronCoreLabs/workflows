@@ -17,4 +17,5 @@ jobs:
     with:
       run_clippy: true
       rust_root: test/rust
+      test_matrix_rust_target: '[ "wasm32-unknown-unknown" ]'
     secrets: inherit
