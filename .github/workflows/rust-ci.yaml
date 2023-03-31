@@ -75,7 +75,6 @@ jobs:
     steps:
     - id: rust_root
       run: |
-        set -x
         if [ -n "${{ inputs.rust_root }}" ] ; then
           root="${{ inputs.rust_root }}"
         else
@@ -198,7 +197,12 @@ jobs:
           secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
           os: buildjet-2vcpu-ubuntu-2204
           version: latest
-      - run: cargo sort --check
+      - run: |
+          if grep -q '\[workspace]' Cargo.toml ; then
+            cargo sort --check --workspace
+          else
+            cargo sort --check
+          fi
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Cancel workflow
         if: failure()
