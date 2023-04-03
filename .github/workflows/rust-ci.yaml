@@ -99,11 +99,9 @@ jobs:
         if: ${{ inputs.additional_system_deps != '' }}
         run: sudo apt install ${{ inputs.additional_system_deps }}
       - uses: IronCoreLabs/rust-toolchain@v1
-        if: ${{ matrix.rust_version != '' }}
         with:
           toolchain: ${{ matrix.rust_version }}
-      - uses: IronCoreLabs/rust-toolchain@v1
-        if: ${{ matrix.rust_version == '' }}
+          targets: ${{ matrix.rust_target }}
       - name: Install sccache
         uses: IronCoreLabs/rust-install@v0.1.0
         with:
@@ -122,9 +120,16 @@ jobs:
           echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
       - uses: Swatinem/rust-cache@v2
       - run: cargo build ${{ matrix.build_args }}
+        if: ${{ matrix.rust_target == '' }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
-      - if: ${{ !matrix.build_only }}
+      - run: cargo build ${{ matrix.build_args }} --target=${{ matrix.rust_target }}
+        if: ${{ matrix.rust_target != '' }}
+        working-directory: ${{ needs.vars.outputs.rust_root }}
+      - if: ${{ !matrix.build_only && matrix.rust_target == '' }}
         run: cargo test ${{ matrix.test_args }}
+        working-directory: ${{ needs.vars.outputs.rust_root }}
+      - if: ${{ !matrix.build_only && matrix.rust_target != '' }}
+        run: cargo test ${{ matrix.test_args }} --target=${{ matrix.rust_target }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Print sccache stats
         run: sccache -s
