@@ -48,7 +48,7 @@ concurrency:
 defaults:
   run:
     # this only applies to `run` steps, any other steps will have to manually manage the root
-    working-directory: ${{ inputs.working-directory }}
+    working-directory: ${{ inputs.working_directory }}
 
 jobs:
   test:
