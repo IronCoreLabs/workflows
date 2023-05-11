@@ -85,7 +85,7 @@ jobs:
           fullCoverageDiff: false
           delta: 0.2
           afterSwitchCommand: "yarn"
-          runCommand: 'yarn --cwd "${{ inputs.working-directory }}" test --coverage --collectCoverage=true --coverageDirectory="./" --coverageReporters="json-summary"'
+          runCommand: 'yarn --cwd "${{ inputs.working_directory }}" test --coverage --collectCoverage=true --coverageDirectory="./" --coverageReporters="json-summary"'
           accessToken: ${{ secrets.WORKFLOW_PAT }}
       - name: Additional commands
         if: ${{ inputs.additional_steps != '' }}
