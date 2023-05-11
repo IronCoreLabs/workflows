@@ -12,7 +12,7 @@ concurrency:
         required: false
         default: true
         type: boolean
-      rust_root:
+      scala_root:
         description: Root of the scala code tree. May be a relative path.
         type: string
         required: false
@@ -52,7 +52,7 @@ jobs:
         jvm: adopt:11
         apps: sbt
     - name: Run CVE check
-      working-directory: ${{ needs.vars.outputs.rust_root }}
+      working-directory: ${{ needs.vars.outputs.scala_root }}
       env:
         MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
         MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
@@ -60,8 +60,8 @@ jobs:
     - name: Convert HTML report to PDF
       uses: fifsky/html-to-pdf-action@v0.1.0
       with:
-        htmlFile: ${{ needs.vars.outputs.rust_root }}/target/scala-2.13/dependency-check-report.html
-        outputFile: ${{ needs.vars.outputs.rust_root }}/${{ env.FILE_NAME }}
+        htmlFile: ${{ needs.vars.outputs.scala_root }}/target/scala-2.13/dependency-check-report.html
+        outputFile: ${{ needs.vars.outputs.scala_root }}/${{ env.FILE_NAME }}
         pdfOptions: '{"format": "A4", "margin": {"top": "10mm", "left": "10mm", "right": "10mm", "bottom": "10mm"}}'
     - uses: actions/upload-artifact@v3
       if: inputs.open_issue
