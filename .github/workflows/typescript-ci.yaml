@@ -2,7 +2,11 @@
 
 # Customization:
 # - all customization should be available via inputs. If anything isn't available, try to add it to this as an input instead of copying and modifying directly
-
+#
+# TODO:
+# - once https://github.com/orgs/community/discussions/25742 or https://github.com/orgs/community/discussions/18055 are implemented,
+#   make use of the resulting feature to have a unit test project for this. For now it's too much pain to manage the
+#   workspace root across the steps
 name: TypeScript CI
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -39,16 +43,6 @@ concurrency:
         description: 'A JS array list of additional bash commands to run after the final step, ex "["./build.js", "yarn run compile"]".'
         required: false
         default: ""
-      working_directory:
-        description: 'A working directory path relative to the action workspace root to run commands from, ex "test/typescript/".'
-        type: string
-        required: false
-        default: ""
-
-defaults:
-  run:
-    # this only applies to `run` steps, any other steps will have to manually manage the root
-    working-directory: ${{ inputs.working_directory }}
 
 jobs:
   test:
@@ -60,7 +54,6 @@ jobs:
         node_version: "${{ fromJSON(inputs.test_matrix_node_version) }}"
     steps:
       - uses: actions/checkout@v3
-      # TODO: how can I get this to respect the working_directory
       - name: Decrypt ironhide files
         uses: IronCoreLabs/ironhide-actions/decrypt@v3
         if: ${{ inputs.files_to_decrypt != '' }}
@@ -85,7 +78,6 @@ jobs:
           fullCoverageDiff: false
           delta: 0.2
           afterSwitchCommand: "yarn"
-          runCommand: 'yarn --cwd "${{ inputs.working_directory }}" test --coverage --collectCoverage=true --coverageDirectory="./" --coverageReporters="json-summary"'
           accessToken: ${{ secrets.WORKFLOW_PAT }}
       - name: Additional commands
         if: ${{ inputs.additional_steps != '' }}
