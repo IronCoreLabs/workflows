@@ -1,0 +1,49 @@
+# Run dependency check for Scala projects.
+
+name: Scala CVE
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+'on':
+  workflow_call:
+    secrets:
+      MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID:
+        description: "AWS access key to access our s3 bucket for scala libs."
+        required: true
+      MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY:
+        description: "AWS secret key to access our s3 bucket for scala libs."
+        required: true
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set FILE_NAME env var
+      run: echo "FILE_NAME=$(date +%B)-${GITHUB_REPOSITORY#*/}-cve.pdf" >> $GITHUB_ENV
+    - name: Set RUN_URL env var
+      run: |
+        echo "RUN_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
+    - uses: coursier/setup-action@v1
+      with:
+        jvm: adopt:11
+        apps: sbt
+    - name: Run CVE check
+      run: sbt -Dhttps.protocols=TLSv1.2,TLSv1.1,TLSv1 dependencyCheckAggregate
+    - name: Convert HTML report to PDF
+      uses: fifsky/html-to-pdf-action@v0.1.0
+      with:
+        htmlFile: ./target/scala-2.13/dependency-check-report.html
+        outputFile: ./${{ env.FILE_NAME }}
+        pdfOptions: '{"format": "A4", "margin": {"top": "10mm", "left": "10mm", "right": "10mm", "bottom": "10mm"}}'
+    - uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.FILE_NAME }}
+        path: ${{ env.FILE_NAME }}
+    - run: |
+        curl -Ss -X POST \
+        -H "Authorization: token ${{ secrets.WORKFLOW_PAT }}" \
+        -H "Accept: application/vnd.github.v3+json" \
+        -d "{\"title\": \"CVE Check $(date +"%B %Y")\",
+          \"body\": \"Output is attached as an artifact to ${{ env.RUN_URL }}. Please attach it to this issue and open a new issue for remediation, if necessary.\"
+          }" \
+        https://api.github.com/repos/${{ github.repository }}/issues
