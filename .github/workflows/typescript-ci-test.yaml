@@ -10,7 +10,7 @@ on:
 
 jobs:
   invoke:
-    name: Typescript CI
+    name: Typescript CI Test
     uses: ./.github/workflows/typescript-ci.yaml
     with:
       run_coverage: true

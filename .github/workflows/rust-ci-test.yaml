@@ -10,7 +10,7 @@ on:
 
 jobs:
   invoke:
-    name: Rust CI
+    name: Rust CI Test
     uses: ./.github/workflows/rust-ci.yaml
     with:
       run_clippy: true
