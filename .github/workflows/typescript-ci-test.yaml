@@ -15,5 +15,5 @@ jobs:
     with:
       run_coverage: true
       working_directory: test/typescript
-      test_matrix_node_version: "["18.15"]"
+      test_matrix_node_version: "['18.15']"
     secrets: inherit
