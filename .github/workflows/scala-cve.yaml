@@ -28,6 +28,9 @@ jobs:
         jvm: adopt:11
         apps: sbt
     - name: Run CVE check
+      env:
+        MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
+        MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
       run: sbt -Dhttps.protocols=TLSv1.2,TLSv1.1,TLSv1 dependencyCheckAggregate
     - name: Convert HTML report to PDF
       uses: fifsky/html-to-pdf-action@v0.1.0
