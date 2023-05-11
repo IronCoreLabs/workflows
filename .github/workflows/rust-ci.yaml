@@ -1,8 +1,7 @@
 # CI for Rust projects. This compiles (using sccache), runs tests, and checks formatting.
 
 # Customization:
-# - Add any necessary setup steps after "Setup sccache env variables". Use jsonpatch path /jobs/cargo-test/steps/5.
-# - Add additional rust versions using jsonpatch path /jobs/cargo-test/strategy/matrix/rust_version/-.
+# - all customization should be available via inputs. If anything isn't available, try to add it to this as an input instead of copying and modifying directly
 
 name: Rust CI
 concurrency:

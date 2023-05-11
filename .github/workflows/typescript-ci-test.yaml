@@ -1,0 +1,19 @@
+# We use this to test the typescript-ci workflow.
+name: Typescript CI
+
+on:
+  push:
+    branches:
+    - main
+  pull_request: null
+  workflow_dispatch: null
+
+jobs:
+  invoke:
+    name: Typescript CI
+    uses: ./.github/workflows/typescript-ci.yaml
+    with:
+      run_coverage: true
+      working_directory: test/typescript
+      test_matrix_node_version: "["18.15"]"
+    secrets: inherit
