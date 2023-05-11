@@ -6,7 +6,6 @@ import org.http4s.HttpRoutes
 import org.http4s.dsl.Http4sDsl
 
 object TestprojectRoutes {
-
   def jokeRoutes[F[_]: Sync](J: Jokes[F]): HttpRoutes[F] = {
     val dsl = new Http4sDsl[F]{}
     import dsl._
