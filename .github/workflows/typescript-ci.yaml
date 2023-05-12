@@ -79,7 +79,7 @@ jobs:
       - name: Run tests
         run: yarn run test
       - name: Check test coverage
-        if: ${{ inputs.run_clippy && github.base_ref != '' }}
+        if: ${{ inputs.run_coverage && github.base_ref != '' }}
         uses: anuraag016/Jest-Coverage-Diff@V1.4
         with:
           fullCoverageDiff: false
