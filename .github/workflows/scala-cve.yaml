@@ -6,16 +6,6 @@ concurrency:
   cancel-in-progress: true
 'on':
   workflow_call:
-    inputs:
-      open_issue:
-        description: "Should an issue be opened for the result."
-        required: false
-        default: true
-        type: boolean
-      scala_root:
-        description: Root of the scala code tree. May be a relative path.
-        type: string
-        required: false
     secrets:
       MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID:
         description: "AWS access key to access our s3 bucket for scala libs."
@@ -24,22 +14,7 @@ concurrency:
         description: "AWS secret key to access our s3 bucket for scala libs."
         required: true
 jobs:
-
-  vars:
-    runs-on: ubuntu-22.04
-    outputs:
-      scala_root: ${{ steps.scala_root.outputs.scala_root }}
-    steps:
-    - id: scala_root
-      run: |
-        if [ -n "${{ inputs.scala_root }}" ] ; then
-          root="${{ inputs.scala_root }}"
-        else
-          root="${{ github.workspace }}"
-        fi
-        echo "scala_root=$root" >> $GITHUB_OUTPUT
   test:
-    needs: vars
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
@@ -53,7 +28,6 @@ jobs:
         jvm: adopt:11
         apps: sbt
     - name: Run CVE check
-      working-directory: ${{ needs.vars.outputs.scala_root }}
       env:
         MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
         MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
@@ -61,17 +35,14 @@ jobs:
     - name: Convert HTML report to PDF
       uses: fifsky/html-to-pdf-action@v0.1.0
       with:
-        htmlFile: ${{ needs.vars.outputs.scala_root }}/target/scala-2.13/dependency-check-report.html
-        outputFile: ${{ needs.vars.outputs.scala_root }}/${{ env.FILE_NAME }}
+        htmlFile: ./target/scala-2.13/dependency-check-report.html
+        outputFile: ./${{ env.FILE_NAME }}
         pdfOptions: '{"format": "A4", "margin": {"top": "10mm", "left": "10mm", "right": "10mm", "bottom": "10mm"}}'
     - uses: actions/upload-artifact@v3
-      if: inputs.open_issue
       with:
         name: ${{ env.FILE_NAME }}
         path: ${{ env.FILE_NAME }}
-    - name: Open Issue
-      if: inputs.open_issue
-      run: |
+    - run: |
         curl -Ss -X POST \
         -H "Authorization: token ${{ secrets.WORKFLOW_PAT }}" \
         -H "Accept: application/vnd.github.v3+json" \
