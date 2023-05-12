@@ -39,6 +39,7 @@ jobs:
         fi
         echo "scala_root=$root" >> $GITHUB_OUTPUT
   test:
+    needs: vars
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
