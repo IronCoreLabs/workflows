@@ -69,7 +69,9 @@ jobs:
       with:
         name: ${{ env.FILE_NAME }}
         path: ${{ env.FILE_NAME }}
-    - run: |
+    - name: Open Issue
+      if: inputs.open_issue
+      run: |
         curl -Ss -X POST \
         -H "Authorization: token ${{ secrets.WORKFLOW_PAT }}" \
         -H "Accept: application/vnd.github.v3+json" \
