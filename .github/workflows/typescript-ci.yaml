@@ -1,0 +1,92 @@
+# CI tasks for Node (TypeScript, JavaScript) repositories.
+
+# Customization:
+# - all customization should be available via inputs. If anything isn't available, try to add it to this as an input instead of copying and modifying directly
+#
+# TODO:
+# - once https://github.com/orgs/community/discussions/25742 or https://github.com/orgs/community/discussions/18055 are implemented,
+#   make use of the resulting feature to have a unit test project for this. For now it's too much pain to manage the
+#   workspace root across the steps
+name: TypeScript CI
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+'on':
+  workflow_call:
+    inputs:
+      test_matrix_node_version:
+        description: 'A JS array list of versions to be included in the test matrix. Defaults to "["14"]".'
+        required: false
+        default: '["14"]'
+        type: string
+      additional_system_deps:
+        description: 'A single string of additional dependencies to install on the ubuntu runner using `apt`, ex "protobuf-compiler openssl".'
+        type: string
+        required: false
+        default: ""
+      files_to_decrypt:
+        description: 'A single string of files to ironhide decrypt using organizational keys, ex ".env.iron .integration.iron".'
+        type: string
+        required: false
+        default: ""
+      node_options:
+        description: 'A single string of command line flags to pass to any node commands, ex "--max-old-space-size=4096".'
+        type: string
+        required: false
+        default: ""
+      run_coverage:
+        type: boolean
+        default: true
+        required: false
+      additional_steps:
+        type: string
+        description: 'A JS array list of additional bash commands to run after the final step, ex "["./build.js", "yarn run compile"]".'
+        required: false
+        default: ""
+    secrets:
+      IRONHIDE_KEYS:
+        description: "Keys to use when decrypting optional ironhide files."
+        required: false
+      WORKFLOW_PAT:
+        description: "GitHub PAT to use when checking out an earlier version of the branch for coverage."
+        required: true
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    env:
+      NODE_OPTIONS: ${{ inputs.node_options }}
+    strategy:
+      matrix:
+        node_version: "${{ fromJSON(inputs.test_matrix_node_version) }}"
+    steps:
+      - uses: actions/checkout@v3
+      - name: Decrypt ironhide files
+        uses: IronCoreLabs/ironhide-actions/decrypt@v3
+        if: ${{ inputs.files_to_decrypt != '' }}
+        with:
+          keys: ${{ secrets.IRONHIDE_KEYS }}
+          input: ${{ inputs.files_to_decrypt }}
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node_version }}
+          cache: yarn
+      - name: Install additional dependencies
+        if: ${{ inputs.additional_system_deps != '' }}
+        run: sudo apt install ${{ inputs.additional_system_deps }}
+      - name: Install modules
+        run: yarn
+      - name: Run tests
+        run: yarn run test
+      - name: Check test coverage
+        if: ${{ inputs.run_coverage && github.base_ref != '' }}
+        uses: anuraag016/Jest-Coverage-Diff@V1.4
+        with:
+          fullCoverageDiff: false
+          delta: 0.2
+          afterSwitchCommand: "yarn"
+          accessToken: ${{ secrets.WORKFLOW_PAT }}
+      - name: Additional commands
+        if: ${{ inputs.additional_steps != '' }}
+        shell: bash
+        run: ${{ join(inputs.additional_steps, '; ') }}
