@@ -127,7 +127,7 @@ jobs:
         fi
         AUTHOR="${{ steps.software-pr.outputs.author }}"
         if [ -n "$AUTHOR" ] ; then
-          ASSIGNEE="--assignee $ASSIGNEE --reviewer $ASSIGNEE"
+          ASSIGNEE="--assignee $AUTHOR --reviewer $AUTHOR"
         fi
         gh pr create --fill $ASSIGNEE $LABELS
         PR=$(gh pr view --json number --jq .number)
