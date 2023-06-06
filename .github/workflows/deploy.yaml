@@ -26,29 +26,27 @@ jobs:
     - name: Set up GitHub auth
       run: |
         echo "GITHUB_TOKEN=${{ secrets.WORKFLOW_PAT }}" >> "$GITHUB_ENV"
-
-    # TODO Maybe these are preinstalled?
-    # - name: Install JSON tools
-    #   run: pip3 install jsonpatch pyyaml
-    # - name: Build yaml2json, json2yaml
-    #   run: |
-    #     mkdir -p ~/bin
-    #     cat - << EOF > ~/bin/json2yaml
-    #     #!/usr/bin/env python3
-    #     import json
-    #     import sys
-    #     import yaml
-    #     sys.stdout.write(yaml.dump(json.load(sys.stdin),sort_keys=False))
-    #     EOF
-    #     cat - << EOF > ~/bin/yaml2json
-    #     #!/usr/bin/env python3
-    #     import json
-    #     import sys
-    #     import yaml
-    #     json.dump(yaml.full_load(sys.stdin),sys.stdout)
-    #     EOF
-    #     chmod +x ~/bin/json2yaml ~/bin/yaml2json
-    #     echo "${HOME}/bin" >> ${GITHUB_PATH}
+    - name: Install JSON tools
+      run: pip3 install jsonpatch pyyaml
+    - name: Build yaml2json, json2yaml
+      run: |
+        mkdir -p ~/bin
+        cat - << EOF > ~/bin/json2yaml
+        #!/usr/bin/env python3
+        import json
+        import sys
+        import yaml
+        sys.stdout.write(yaml.dump(json.load(sys.stdin),sort_keys=False))
+        EOF
+        cat - << EOF > ~/bin/yaml2json
+        #!/usr/bin/env python3
+        import json
+        import sys
+        import yaml
+        json.dump(yaml.full_load(sys.stdin),sys.stdout)
+        EOF
+        chmod +x ~/bin/json2yaml ~/bin/yaml2json
+        echo "${HOME}/bin" >> ${GITHUB_PATH}
 
     - name: Check out software repo
       uses: actions/checkout@v3
