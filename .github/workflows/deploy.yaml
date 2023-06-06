@@ -102,6 +102,10 @@ jobs:
             done
           )
         done
+        if ! [ -f /tmp/edited-dirs ] ; then
+          echo "No recipes found with any of '${{ env.IMAGES }}' in them."
+          exit 1
+        fi
         EDITED="$(sort -u < /tmp/edited-dirs)" # To replace "\n" with " ".
         echo 'edited-recipes<<EOF' >> $GITHUB_OUTPUT
         echo "${EDITED}" >> $GITHUB_OUTPUT
