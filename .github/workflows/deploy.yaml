@@ -60,14 +60,13 @@ jobs:
       working-directory: software
       run: |
         set -x
-        # "gh pr view" auto selects the PR for the current branch, or exits with an error.
-        if ! gh pr view --json author,number > /tmp/software_pr.json ; then
-          # We're not on a PR branch, so we have no PR or author to report.
+        gh release view ${{ inputs.tag }} --json body --jq '.body' | sed 's/.*latest_pr:\([0-9]*\).*/\1/' > /tmp/pr
+        PR=$(cat /tmp/pr)
+        if [ -z "${PR}" ] || [ "${PR}" = "null" ] ; then
           exit 0
         fi
-        PR=$(jq -r '.number' /tmp/software_pr.json)
-        AUTHOR=$(jq -r '.author.login' /tmp/software_pr.json)
         echo "pr=$PR" >> "$GITHUB_OUTPUT"
+        AUTHOR=$(gh pr view ${PR} --json author --jq '.author.login')
         if [ -n "$AUTHOR" ] ; then
           echo "author=$AUTHOR" >> "$GITHUB_OUTPUT"
         fi
