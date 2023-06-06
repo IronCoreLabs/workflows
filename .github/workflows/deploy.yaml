@@ -1,0 +1,196 @@
+# This workflow updates files in the deployments repository, to use a new version of a docker image.
+
+name: Deploy
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+'on':
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        description: Git tag to be released.
+        required: true
+      images:
+        type: string
+        description: Space separated list of token replacements to be passed to "kustomize edit set image". placeholder=image:tag
+        required: true
+    secrets:
+      WORKFLOW_PAT:
+        description: GitHub personal access token with at least "repo" permissions to both this repo and the deployments repo.
+        required: true
+jobs:
+  deploy-overlay:
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Set up GitHub auth
+      run: |
+        echo "GITHUB_TOKEN=${{ secrets.WORKFLOW_PAT }}" >> "$GITHUB_ENV"
+
+    # TODO Maybe these are preinstalled?
+    # - name: Install JSON tools
+    #   run: pip3 install jsonpatch pyyaml
+    # - name: Build yaml2json, json2yaml
+    #   run: |
+    #     mkdir -p ~/bin
+    #     cat - << EOF > ~/bin/json2yaml
+    #     #!/usr/bin/env python3
+    #     import json
+    #     import sys
+    #     import yaml
+    #     sys.stdout.write(yaml.dump(json.load(sys.stdin),sort_keys=False))
+    #     EOF
+    #     cat - << EOF > ~/bin/yaml2json
+    #     #!/usr/bin/env python3
+    #     import json
+    #     import sys
+    #     import yaml
+    #     json.dump(yaml.full_load(sys.stdin),sys.stdout)
+    #     EOF
+    #     chmod +x ~/bin/json2yaml ~/bin/yaml2json
+    #     echo "${HOME}/bin" >> ${GITHUB_PATH}
+
+    - name: Check out software repo
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ steps.tag.outputs.tag }}
+        path: software
+    # Find the original PR to the software repo. The docker tag should correspond to a GitHub release, which should have a
+    # description pointing to the PR number.
+    - name: Get original PR
+      id: software-pr
+      working-directory: software
+      run: |
+        set -x
+        # "gh pr view" auto selects the PR for the current branch, or exits with an error.
+        if ! gh pr view --json author,number > /tmp/software_pr.json ; then
+          # We're not on a PR branch, so we have no PR or author to report.
+          exit 0
+        fi
+        PR=$(jq -r '.number' /tmp/software_pr.json)
+        AUTHOR=$(jq -r '.author.login' /tmp/software_pr.json)
+        echo "pr=$PR" >> "$GITHUB_OUTPUT"
+        if [ -n "$AUTHOR" ] ; then
+          echo "author=$AUTHOR" >> "$GITHUB_OUTPUT"
+        fi
+
+    # Make a PR to the deployments repo.
+    - name: Check out deployments
+      uses: actions/checkout@v3
+      with:
+        repository: IronCoreLabs/deployments
+        path: deployments
+        # token: ${{ secrets.WORKFLOW_PAT }}
+    - name: Update deployments
+      id: update-recipes
+      working-directory: deployments
+      run: |
+        set -x
+        for DIR in * ; do
+          if ! [ -d "${DIR}" ] ; then
+            continue
+          fi
+          (
+            cd "${DIR}"
+            FILE="kustomization.yaml"
+            for IMG in ${{ env.IMAGES }} ; do
+              PLACEHOLDER=$(echo "${IMG}" | sed 's/=.*//')
+              yaml2json < "${FILE}" > /tmp/kust.json
+              jq --arg name "${PLACEHOLDER}" '[(.images // []) | .[] | .name == $name] | any' < /tmp/kust.json > /tmp/status
+              if [ $(cat /tmp/status) = true ] ; then
+                kustomize edit set image "${IMG}:${{ steps.tag.outputs.tag }}"
+                echo $(basename "${DIR}") >> /tmp/edited-dirs
+                git add "kustomization.yaml"
+              fi
+            done
+          )
+        done
+        EDITED="$(sort -u < /tmp/edited-dirs)" # To replace "\n" with " ".
+        echo 'edited-recipes<<EOF' >> $GITHUB_OUTPUT
+        echo "${EDITED}" >> $GITHUB_OUTPUT
+        echo 'EOF' >> $GITHUB_OUTPUT
+    - name: Commit and PR to deployments
+      id: promote-pr
+      working-directory: deployments
+      run: |
+        set -x
+        git config --global user.email ops@ironcorelabs.com
+        git config --global user.name "Leeroy Travis"
+        THISREPO="$(basename ${{ github.repository }})"
+        NEW_BRANCH="${THISREPO}-${{ steps.tag.outputs.tag }}"
+        echo "branch=${NEW_BRANCH}" >> "${GITHUB_ENV}"
+        git checkout -b "${NEW_BRANCH}"
+        COMMIT_MSG="Upgrade: [ ${THISREPO} -> ${{ steps.tag.outputs.tag }} ]"
+        git commit -m "${COMMIT_MSG}"
+        git push -u origin "${NEW_BRANCH}"
+
+        # If we can't find the originating PR, it must mean the change came from automation, and we should auto-promote.
+        if [ -z "${{ steps.software-pr.outputs.pr }}" ] ; then
+          LABELS="--label auto-promote"
+        fi
+        AUTHOR="${{ steps.software-pr.outputs.author }}"
+        if [ -n "$AUTHOR" ] ; then
+          ASSIGNEE="--assignee $ASSIGNEE --reviewer $ASSIGNEE"
+        fi
+        gh pr create --fill $ASSIGNEE $LABELS
+        PR=$(gh pr view --json number --jq .number)
+        echo "pr=$PR" >> "$GITHUB_OUTPUT"
+
+    # Update clusters-nonprod to use the new branch we just created in deployments.
+    - name: Check out clusters-nonprod
+      uses: actions/checkout@v3
+      with:
+        repository: IronCoreLabs/clusters-nonprod
+        path: clusters-nonprod
+        # TODO token: ${{ secrets.WORKFLOW_PAT }}
+    - name: Update clusters-nonprod
+      id: update-clusters-nonprod
+      working-directory: clusters-nonprod
+      run: |
+        set -x
+        for RECIPE in "${{ steps.update-recipes.outputs.edited-recipes }}" ; do
+          for DIR in staging/* ; do
+            if ! [ -d "${DIR}" ] ; then
+              continue
+            fi
+            (
+              cd "${DIR}"
+              FILE="kustomization.yaml"
+              REPO="https://github.com/IronCoreLabs/deployments//${RECIPE}"
+              if yaml2json < "${FILE}" | jq -e --arg repo "${REPO}" '[.resources[] | test($repo + "(\\?.*)?$")] | any' ; then
+                sed "s^\(${REPO}\)\(\\?.*\)\{0,1\}$^\1?ref=${{ steps.promote-pr.outputs.branch }}^" < kustomization.yaml > /tmp/new
+                mv /tmp/new kustomization.yaml
+                git add kustomization.yaml
+                touch /tmp/changed-files
+              fi
+            )
+          done
+        done
+        if [ -f /tmp/changed-files ] ; then
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        fi
+    - name: Commit and push to clusters-nonprod
+      if: "${{ steps.update-clusters-nonprod.outputs.changed == 'true' }}"
+      working-directory: clusters-nonprod
+      run: |
+        git commit -m "Test updated ${{ steps.promote-pr.outputs.branch }}"
+        TRIES=0
+        # If git push fails, it's hopefully just a concurrent update that we can retry.
+        while ! git push ; do
+          TRIES=$(expr ${TRIES} + 1)
+          if [ "${TRIES}" -ge 5 ] ; then
+            break
+          fi
+          git pull
+          sleep 30
+        done
+
+    # Comment on the original software PR, pointing to the new deployments PR.
+    - name: Comment on the software PR
+      if: "${{ steps.software-pr.outputs.pr != ''}}"
+      working-directory: software
+      run: |
+        set -x
+        echo "This build is ready for promotion to prod:" > /tmp/body.txt
+        echo "IronCoreLabs/deployments#${{ steps.promote-pr.outputs.pr }}" >> /tmp/body.txt
+        gh pr comment -F /tmp/body.txt ${{ steps.software-pr.outputs.pr }}
