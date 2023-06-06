@@ -115,7 +115,7 @@ jobs:
         git config --global user.name "Leeroy Travis"
         THISREPO="$(basename ${{ github.repository }})"
         NEW_BRANCH="${THISREPO}-${{ inputs.tag }}"
-        echo "branch=${NEW_BRANCH}" >> "${GITHUB_ENV}"
+        echo "branch=${NEW_BRANCH}" >> "$GITHUB_OUTPUT"
         git checkout -b "${NEW_BRANCH}"
         COMMIT_MSG="Upgrade: [ ${THISREPO} -> ${{ inputs.tag }} ]"
         git commit -m "${COMMIT_MSG}"
