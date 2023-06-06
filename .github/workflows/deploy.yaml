@@ -80,7 +80,7 @@ jobs:
       with:
         repository: IronCoreLabs/deployments
         path: deployments
-        # token: ${{ secrets.WORKFLOW_PAT }}
+        token: ${{ secrets.WORKFLOW_PAT }}
     - name: Update deployments
       id: update-recipes
       working-directory: deployments
@@ -142,7 +142,7 @@ jobs:
       with:
         repository: IronCoreLabs/clusters-nonprod
         path: clusters-nonprod
-        # TODO token: ${{ secrets.WORKFLOW_PAT }}
+        token: ${{ secrets.WORKFLOW_PAT }}
     - name: Update clusters-nonprod
       id: update-clusters-nonprod
       working-directory: clusters-nonprod
