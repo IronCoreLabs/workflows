@@ -15,6 +15,9 @@ concurrency:
         type: string
         description: Space separated list of token replacements to be passed to "kustomize edit set image". placeholder=image:tag
         required: true
+      image-override:
+        type: string
+        description: Override the second part of the images list, to select public or private container registry.
     secrets:
       WORKFLOW_PAT:
         description: GitHub personal access token with at least "repo" permissions to both this repo and the deployments repo.
@@ -92,10 +95,14 @@ jobs:
             FILE="kustomization.yaml"
             for IMG in ${{ inputs.images }} ; do
               PLACEHOLDER=$(echo "${IMG}" | sed 's/=.*//')
+              NEW_NAME=$(echo "${IMG}" | sed 's/[^=]*=//')
+              if [ -n "${{ inputs.image-override }}" ] ; then
+                NEW_NAME="${{ inputs.image-override }}"
+              fi
               yaml2json < "${FILE}" > /tmp/kust.json
               jq --arg name "${PLACEHOLDER}" '[(.images // []) | .[] | .name == $name] | any' < /tmp/kust.json > /tmp/status
               if [ $(cat /tmp/status) = true ] ; then
-                kustomize edit set image "${IMG}:${{ inputs.tag }}"
+                kustomize edit set image "${PLACEHOLDER}=${NEW_NAME}:${{ inputs.tag }}"
                 echo $(basename "${DIR}") >> /tmp/edited-dirs
                 git add "kustomization.yaml"
               fi
@@ -103,7 +110,7 @@ jobs:
           )
         done
         if ! [ -f /tmp/edited-dirs ] ; then
-          echo "No recipes found with any of '${{ env.IMAGES }}' in them."
+          echo "No recipes found with any of '${{ inputs.images }}' in them."
           exit 1
         fi
         EDITED="$(sort -u < /tmp/edited-dirs)" # To replace "\n" with " ".
