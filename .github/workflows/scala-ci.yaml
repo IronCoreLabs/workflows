@@ -1,0 +1,47 @@
+# CI for Scala projects. This compiles, runs tests, checks formatting, and produces a coverage report.
+
+name: Scala CI
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  workflow_call:
+    inputs:
+      test_command:
+        description: sbt command used to test. Typically "test" (default) or "testAll".
+        type: string
+        required: false
+        default: "test"
+      additional_system_deps:
+        description: 'A single string of additional dependencies to install on the ubuntu runner using `apt`, ex "libsodium-dev openssl".'
+        type: string
+        required: false
+        default: ""
+    secrets:
+      MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID:
+        description: "AWS access key to access our s3 bucket for scala libs."
+        required: true
+      MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY:
+        description: "AWS secret key to access our s3 bucket for scala libs."
+        required: true
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install additional dependencies
+        if: ${{ inputs.additional_system_deps != '' }}
+        run: sudo apt install ${{ inputs.additional_system_deps }}
+      - name: Restore caches
+        uses: coursier/cache-action@v6
+      - name: Setup Scala
+        uses: coursier/setup-action@v1
+        with:
+          jvm: adopt:11
+          apps: sbt
+      - name: Build and test
+        env:
+          MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
+          MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
+        # See https://github.com/IronCoreLabs/backup-kafka/issues/102, this -D should be removed once not needed
+        run: sbt -Dhttps.protocols=TLSv1.2,TLSv1.1,TLSv1 scalafmtCheckAll scalastyle coverage ${{ inputs.test_command }} coverageReport
