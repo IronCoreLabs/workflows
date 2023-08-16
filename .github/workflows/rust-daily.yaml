@@ -4,9 +4,6 @@
 # - all customization should be available via inputs. If anything isn't available, try to add it to this as an input instead of copying and modifying directly
 
 name: Rust Daily
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 on:
   workflow_call:
     inputs:

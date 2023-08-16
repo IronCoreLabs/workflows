@@ -8,10 +8,6 @@ on:
   pull_request: null
   workflow_dispatch: null
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   invoke_rust_ci:
     name: Rust CI Test
