@@ -1,0 +1,104 @@
+# Daily CI for Rust projects. This runs `cargo check` on all the provided targets/toolchains.
+
+# Customization:
+# - all customization should be available via inputs. If anything isn't available, try to add it to this as an input instead of copying and modifying directly
+
+name: Rust Daily
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  workflow_call:
+    inputs:
+      rust_root:
+        description: Root of the rust code tree. May be a relative path.
+        type: string
+        required: false
+      rust_versions:
+        description: 'A JS array list of versions to be included in the test matrix. Defaults to `["beta"]` (stable will be implicitly added in the default `matrix_include`).'
+        required: false
+        default: '["beta"]'
+        type: string
+      rust_targets:
+        description: "Matrix of rust targets for a build. Defaults to nothing (which will use the system target). Mostly useful in includes."
+        required: false
+        default: '[""]'
+        type: string
+      matrix_include:
+        description: 'Specific combinations to add to the test matrix. Defaults to "[{ rust_version: "" }]" which will build and run tests using the toolchain version. Available values are: rust_version, check_args'
+        required: false
+        default: '[{ rust_version: "" }]'
+        type: string
+      additional_system_deps:
+        description: 'A single string of additional dependencies to install on the ubuntu runner using `apt`, ex "libzmq3-dev openssl".'
+        type: string
+        required: false
+        default: ""
+    secrets:
+      TOOL_CACHE_SECRET_KEY:
+        description: "AWS secret key to access our Rust tool cache S3 bucket."
+        required: true
+      SCCACHE_AWS_SECRET:
+        description: "AWS secret key to access our sccache S3 bucket."
+        required: true
+
+jobs:
+  # Assigns some variables, because GHA doesn't expand variables in inputs.*.default.
+  vars:
+    runs-on: buildjet-2vcpu-ubuntu-2204
+    outputs:
+      rust_root: ${{ steps.rust_root.outputs.rust_root }}
+    steps:
+      - id: rust_root
+        run: |
+          if [ -n "${{ inputs.rust_root }}" ] ; then
+            root="${{ inputs.rust_root }}"
+          else
+            root="${{ github.workspace }}"
+          fi
+          echo "rust_root=$root" >> $GITHUB_OUTPUT
+
+  cargo-check:
+    runs-on: buildjet-2vcpu-ubuntu-2204
+    needs: vars
+    defaults:
+      run:
+        working-directory: ${{ needs.vars.outputs.rust_root }}
+    strategy:
+      matrix:
+        rust_version: "${{ fromJSON(inputs.rust_versions) }}"
+        rust_target: "${{ fromJSON(inputs.rust_targets) }}"
+        include: ${{ fromJSON(inputs.matrix_include) }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install additional dependencies
+        if: ${{ inputs.additional_system_deps != '' }}
+        run: sudo apt install ${{ inputs.additional_system_deps }}
+      - uses: IronCoreLabs/rust-toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust_version }}
+          targets: ${{ matrix.rust_target }}
+      - name: Install sccache
+        uses: IronCoreLabs/rust-install@v0.1.0
+        with:
+          crate: sccache
+          accesskey: AKIAU2WBY6VDTC563V7G
+          secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
+          os: buildjet-2vcpu-ubuntu-2204
+          version: latest
+      - name: Setup sccache env variables
+        run: |
+          echo "CC=$(which cc)" >> $GITHUB_ENV
+          echo "RUSTC_WRAPPER=$HOME/.cargo/bin/sccache" >> $GITHUB_ENV
+          echo "AWS_ACCESS_KEY_ID=AKIAU2WBY6VDVHUO5WSN" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }}" >> $GITHUB_ENV
+          echo "SCCACHE_BUCKET=sccache-rust" >> $GITHUB_ENV
+          echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
+          echo "SCCACHE_REGION=us-west-2" >> $GITHUB_ENV
+      - uses: Swatinem/rust-cache@v2
+      - if: ${{ matrix.rust_target == '' }}
+        run: cargo check --all-features
+      - if: ${{ matrix.rust_target != '' }}
+        run: cargo check --target=${{ matrix.rust_target }} --all-features
+      - name: Print sccache stats
+        run: sccache -s
