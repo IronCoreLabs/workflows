@@ -7,7 +7,7 @@ name: Rust CI
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-'on':
+on:
   workflow_call:
     inputs:
       minimum_coverage:

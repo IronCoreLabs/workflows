@@ -4,7 +4,7 @@ name: Scala CVE
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-'on':
+on:
   workflow_call:
     secrets:
       MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID:
@@ -18,11 +18,13 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
-    - name: Set FILE_NAME env var
-      run: echo "FILE_NAME=$(date +%B)-${GITHUB_REPOSITORY#*/}-cve.pdf" >> $GITHUB_ENV
-    - name: Set RUN_URL env var
+    - name: Set file_name output var
+      id: file_name
+      run: echo "file_name=$(date +%B)-${GITHUB_REPOSITORY#*/}-cve.pdf" >> $GITHUB_OUTPUT
+    - name: Set run_url output var
+      id: run_url
       run: |
-        echo "RUN_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
+        echo "run_url=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_OUTPUT
     - uses: coursier/setup-action@v1
       with:
         jvm: adopt:11
@@ -36,17 +38,17 @@ jobs:
       uses: fifsky/html-to-pdf-action@v0.1.0
       with:
         htmlFile: ./target/scala-2.13/dependency-check-report.html
-        outputFile: ./${{ env.FILE_NAME }}
+        outputFile: ./${{ steps.file_name.outputs.file_name }}
         pdfOptions: '{"format": "A4", "margin": {"top": "10mm", "left": "10mm", "right": "10mm", "bottom": "10mm"}}'
     - uses: actions/upload-artifact@v3
       with:
-        name: ${{ env.FILE_NAME }}
-        path: ${{ env.FILE_NAME }}
+        name: ${{ steps.file_name.outputs.file_name }}
+        path: ${{ steps.file_name.outputs.file_name }}
     - run: |
         curl -Ss -X POST \
         -H "Authorization: token ${{ secrets.WORKFLOW_PAT }}" \
         -H "Accept: application/vnd.github.v3+json" \
         -d "{\"title\": \"CVE Check $(date +"%B %Y")\",
-          \"body\": \"Output is attached as an artifact to ${{ env.RUN_URL }}. Please attach it to this issue and open a new issue for remediation, if necessary.\"
+          \"body\": \"Output is attached as an artifact to ${{ steps.run_url.outputs.run_url }}. Please attach it to this issue and open a new issue for remediation, if necessary.\"
           }" \
         https://api.github.com/repos/${{ github.repository }}/issues
