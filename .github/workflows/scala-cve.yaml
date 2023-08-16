@@ -18,10 +18,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
-      - name: Set FILE_NAME env var
+      - name: Set file_name output var
         id: file_name
         run: echo "file_name=$(date +%B)-${GITHUB_REPOSITORY#*/}-cve.pdf" >> $GITHUB_OUTPUT
-      - name: Set RUN_URL env var
+      - name: Set run_url output var
         id: run_url
         run: |
           echo "run_url=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_OUTPUT
