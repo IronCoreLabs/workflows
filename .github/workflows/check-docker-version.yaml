@@ -1,0 +1,33 @@
+# This workflow works with bump-version.yaml to ensure that the version in the
+# Dockerfile is consistent with what's in the version file. If not, it aborts the
+# workflow so a human can fix it. This is meant to run on every commit to a PR.
+# The dockervar should appear near the top of the file in a statement like:
+# ARG FOO_VERSION=1.2.3
+# The actual version should just be a semver version with no -buildnumber and no leading "v" or other characters.
+
+name: Check Docker Version
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  workflow_call:
+    inputs:
+      dockervar:
+        type: string
+        description: The name of an ARG variable in the Dockerfile that will be checked for compatibility with the version.
+        required: true
+jobs:
+  check_version:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check versions
+        run: |
+          set -x
+          REPOVERS="$(.github/bump-version.get.sh)"
+          DOCKERVERS="$(grep -E "^ARG ${{ inputs.dockervar }}=.*" Dockerfile | head -1 | sed 's/.*=//')"
+          # $REPOVERS must be a string that begins with $DOCKERVERS and has an optional -something on the end.
+          if ! [[ "${REPOVERS}" =~ ^${DOCKERVERS}(-.*)?$ ]] ; then
+            echo "Version mismatch."
+            exit 1
+          fi
