@@ -25,7 +25,7 @@ on:
         default: '[""]'
         type: string
       matrix_include:
-        description: 'Specific combinations to add to the test matrix. Defaults to "[{ rust_version: "" }]" which will build and run tests using the toolchain version. Available values are: rust_version, check_args'
+        description: 'Specific combinations to add to the test matrix. Defaults to "[{ rust_version: "" }]" which will build and run tests using the toolchain version. Available values are: rust_version, rust_target'
         required: false
         default: '[{ rust_version: "" }]'
         type: string
