@@ -4,7 +4,7 @@ name: Rust Workflow Tests
 on:
   push:
     branches:
-      - main
+    - main
   pull_request: null
   workflow_dispatch: null
 
