@@ -66,4 +66,4 @@ jobs:
           MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
           MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
         # See https://github.com/IronCoreLabs/backup-kafka/issues/102, this -D should be removed once not needed
-        run: sbt -Dhttps.protocols=TLSv1.2,TLSv1.1,TLSv1 scalafmtCheckAll scalastyle ${{ inputs.run_coverage && 'coverage' }} ${{ inputs.test_command }} ${{ inputs.run_coverage && 'coverageReport' }}
+        run: sbt -Dhttps.protocols=TLSv1.2,TLSv1.1,TLSv1 scalafmtCheckAll scalastyle ${{ inputs.run_coverage == true && 'coverage' }} ${{ inputs.test_command }} ${{ inputs.run_coverage == true && 'coverageReport' }}
