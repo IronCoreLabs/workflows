@@ -37,7 +37,7 @@ jobs:
       - name: Setup Scala
         uses: coursier/setup-action@v1
         with:
-          jvm: adopt:17
+          jvm: eclipse-temurin:17-jdk
           apps: sbt
       - name: Build and test
         env:
