@@ -17,6 +17,16 @@ on:
         type: string
         required: false
         default: ""
+      download_release_binary_repo:
+        description: "Repo to download an additional binary from (e.g. IronCoreLabs/ironoxide-swig-bindings)"
+        type: string
+        required: false
+        default: ""
+      download_release_binary_name:
+        description: "Name for additional binary to download from `download_release_binary_repo` (e.g. libironoxide_java.so)"
+        type: string
+        required: false
+        default: ""
     secrets:
       MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID:
         description: "AWS access key to access our s3 bucket for scala libs."
@@ -39,6 +49,13 @@ jobs:
         with:
           jvm: adoptium:1.17
           apps: sbt
+      - name: Download additional binary
+        if: ${{ inputs.download_release_binary_repo != '' && inputs.download_release_binary_name != '' }}
+        uses: robinraju/release-downloader@v1.8
+        with:
+          repository: ${{ inputs.download_release_binary_repo }}
+          fileName: ${{ inputs.download_release_binary_name }}
+          latest: true
       - name: Build and test
         env:
           MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
