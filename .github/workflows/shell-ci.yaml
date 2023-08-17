@@ -1,0 +1,18 @@
+# Run CI for shell script projects. This runs shellspec.
+
+name: Shell CI
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  workflow_call:
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install shellspec
+        run: curl -fsSL https://git.io/shellspec | sh -s -- --yes
+      - name: Run tests
+        run: shellspec
