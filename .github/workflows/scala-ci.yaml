@@ -12,18 +12,23 @@ on:
         type: string
         required: false
         default: "test"
+      run_coverage:
+        description: Whether or not to run `coverage` and `coverageReport`.
+        type: boolean
+        required: false
+        default: true
       additional_system_deps:
-        description: 'A single string of additional dependencies to install on the ubuntu runner using `apt`, ex "libsodium-dev openssl".'
+        description: A single string of additional dependencies to install on the ubuntu runner using `apt`, ex "libsodium-dev openssl".
         type: string
         required: false
         default: ""
       download_release_binary_repo:
-        description: "Repo to download an additional binary from (e.g. IronCoreLabs/ironoxide-swig-bindings)"
+        description: Repo to download an additional binary from (e.g. IronCoreLabs/ironoxide-swig-bindings)
         type: string
         required: false
         default: ""
       download_release_binary_name:
-        description: "Name for additional binary to download from `download_release_binary_repo` (e.g. libironoxide_java.so)"
+        description: Name for additional binary to download from `download_release_binary_repo` (e.g. libironoxide_java.so)
         type: string
         required: false
         default: ""
@@ -61,4 +66,4 @@ jobs:
           MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
           MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
         # See https://github.com/IronCoreLabs/backup-kafka/issues/102, this -D should be removed once not needed
-        run: sbt -Dhttps.protocols=TLSv1.2,TLSv1.1,TLSv1 scalafmtCheckAll scalastyle coverage ${{ inputs.test_command }} coverageReport
+        run: sbt -Dhttps.protocols=TLSv1.2,TLSv1.1,TLSv1 scalafmtCheckAll scalastyle ${{ inputs.run_coverage && 'coverage' }} ${{ inputs.test_command }} ${{ inputs.run_coverage && 'coverageReport' }}
