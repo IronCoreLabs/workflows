@@ -93,6 +93,11 @@ jobs:
         rust_target: "${{ fromJSON(inputs.test_matrix_rust_target) }}"
         include: ${{ fromJSON(inputs.test_matrix_include) }}
     steps:
+      - name: Configure git ssh access
+        run: |
+          mkdir -p "${HOME}/.ssh"
+          chmod 700 "${HOME}/.ssh"
+          echo "${LEEROY_PRIVATE_SSH_KEY}" > "${HOME}/.ssh/id_ed25519"
       - uses: actions/checkout@v3
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
