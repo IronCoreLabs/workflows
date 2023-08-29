@@ -97,7 +97,7 @@ jobs:
         run: |
           mkdir -p "${HOME}/.ssh"
           chmod 700 "${HOME}/.ssh"
-          echo "${LEEROY_PRIVATE_SSH_KEY}" > "${HOME}/.ssh/id_ed25519"
+          echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - uses: actions/checkout@v3
@@ -150,7 +150,7 @@ jobs:
         run: |
           mkdir -p "${HOME}/.ssh"
           chmod 700 "${HOME}/.ssh"
-          echo "${LEEROY_PRIVATE_SSH_KEY}" > "${HOME}/.ssh/id_ed25519"
+          echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - uses: actions/checkout@v3
@@ -207,7 +207,7 @@ jobs:
         run: |
           mkdir -p "${HOME}/.ssh"
           chmod 700 "${HOME}/.ssh"
-          echo "${LEEROY_PRIVATE_SSH_KEY}" > "${HOME}/.ssh/id_ed25519"
+          echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - uses: actions/checkout@v3
@@ -245,7 +245,7 @@ jobs:
         run: |
           mkdir -p "${HOME}/.ssh"
           chmod 700 "${HOME}/.ssh"
-          echo "${LEEROY_PRIVATE_SSH_KEY}" > "${HOME}/.ssh/id_ed25519"
+          echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - uses: actions/checkout@v3
