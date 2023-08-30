@@ -68,6 +68,13 @@ jobs:
         include: ${{ fromJSON(inputs.matrix_include) }}
     steps:
       - uses: actions/checkout@v3
+      - name: Configure git ssh access
+        run: |
+          mkdir -p "${HOME}/.ssh"
+          chmod 700 "${HOME}/.ssh"
+          echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
+          chmod 600 "${HOME}/.ssh/id_ed25519"
+          ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: sudo apt install ${{ inputs.additional_system_deps }}

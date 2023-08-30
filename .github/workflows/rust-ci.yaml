@@ -93,6 +93,13 @@ jobs:
         rust_target: "${{ fromJSON(inputs.test_matrix_rust_target) }}"
         include: ${{ fromJSON(inputs.test_matrix_include) }}
     steps:
+      - name: Configure git ssh access
+        run: |
+          mkdir -p "${HOME}/.ssh"
+          chmod 700 "${HOME}/.ssh"
+          echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
+          chmod 600 "${HOME}/.ssh/id_ed25519"
+          ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - uses: actions/checkout@v3
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
@@ -139,6 +146,13 @@ jobs:
     needs: vars
     if: github.actor != 'dependabot[bot]' && github.event_name == 'pull_request'
     steps:
+      - name: Configure git ssh access
+        run: |
+          mkdir -p "${HOME}/.ssh"
+          chmod 700 "${HOME}/.ssh"
+          echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
+          chmod 600 "${HOME}/.ssh/id_ed25519"
+          ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - uses: actions/checkout@v3
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
@@ -189,6 +203,13 @@ jobs:
     runs-on: buildjet-2vcpu-ubuntu-2204
     needs: vars
     steps:
+      - name: Configure git ssh access
+        run: |
+          mkdir -p "${HOME}/.ssh"
+          chmod 700 "${HOME}/.ssh"
+          echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
+          chmod 600 "${HOME}/.ssh/id_ed25519"
+          ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - uses: actions/checkout@v3
       - uses: IronCoreLabs/rust-toolchain@v1
         with:
@@ -220,6 +241,13 @@ jobs:
     needs: vars
     if: inputs.run_clippy
     steps:
+      - name: Configure git ssh access
+        run: |
+          mkdir -p "${HOME}/.ssh"
+          chmod 700 "${HOME}/.ssh"
+          echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
+          chmod 600 "${HOME}/.ssh/id_ed25519"
+          ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - uses: actions/checkout@v3
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
