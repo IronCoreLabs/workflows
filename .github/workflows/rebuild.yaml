@@ -16,7 +16,7 @@ jobs:
         with:
           token: ${{ secrets.WORKFLOW_PAT }}
       - name: Trigger rebuild
-        uses: benc-uk/workflow-dispatch@v1
+        uses: benc-uk/workflow-dispatch@v121
         with:
           workflow: "Bump Version"
           token: ${{ secrets.WORKFLOW_PAT }}
