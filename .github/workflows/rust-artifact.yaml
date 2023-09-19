@@ -53,24 +53,8 @@ on:
         required: true
 
 jobs:
-  # Assigns some variables, because GHA doesn't expand variables in inputs.*.default.
-  vars:
-    runs-on: buildjet-2vcpu-ubuntu-2204
-    outputs:
-      rust_root: ${{ steps.rust_root.outputs.rust_root }}
-    steps:
-      - id: rust_root
-        run: |
-          if [ -n "${{ inputs.rust_root }}" ] ; then
-            root="${{ inputs.rust_root }}"
-          else
-            root="${{ github.workspace }}"
-          fi
-          echo "rust_root=$root" >> $GITHUB_OUTPUT
-
   cargo-artifact:
     runs-on: ${{ matrix.os }}
-    needs: vars
     strategy:
       fail-fast: false
       matrix:
@@ -80,6 +64,14 @@ jobs:
         include: ${{ fromJSON(inputs.matrix_include) }}
     steps:
       - uses: actions/checkout@v3
+      - id: rust_root
+        run: |
+          if [ -n "${{ inputs.rust_root }}" ] ; then
+              root="${{ inputs.rust_root }}"
+          else
+              root="${{ github.workspace }}"
+          fi
+          echo "rust_root=$root" >> $GITHUB_OUTPUT
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: sudo apt install ${{ inputs.additional_system_deps }}
@@ -106,16 +98,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --release
         if: ${{ matrix.rust_target == '' }}
-        working-directory: ${{ needs.vars.outputs.rust_root }}
+        working-directory: ${{ steps.rust_root.outputs.rust_root }}
       - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --target=${{ matrix.rust_target }} --release
         if: ${{ matrix.rust_target != '' }}
-        working-directory: ${{ needs.vars.outputs.rust_root }}
+        working-directory: ${{ steps.rust_root.outputs.rust_root }}
       - uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.os }}-${{ matrix.rust_target }}
           path: |
-            ${{ needs.vars.outputs.rust_root }}/target/**/*.dylib
-            ${{ needs.vars.outputs.rust_root }}/target/**/*.so
+            ${{ steps.rust_root.outputs.rust_root }}/target/**/*.dylib
+            ${{ steps.rust_root.outputs.rust_root }}/target/**/*.so
           if-no-files-found: error
       - name: Print sccache stats
         run: sccache -s
