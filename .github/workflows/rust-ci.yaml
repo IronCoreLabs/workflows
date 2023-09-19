@@ -57,6 +57,11 @@ on:
         type: string
         required: false
         default: ""
+      cargo_command_env_vars:
+        description: 'A space-separated string of environment variable pairs to put before all the `cargo` commands, ex "RUST_LOG=info"'
+        type: string
+        required: false
+        default: ""
     secrets:
       TOOL_CACHE_SECRET_KEY:
         description: "AWS secret key to access our Rust tool cache S3 bucket."
@@ -72,14 +77,14 @@ jobs:
     outputs:
       rust_root: ${{ steps.rust_root.outputs.rust_root }}
     steps:
-    - id: rust_root
-      run: |
-        if [ -n "${{ inputs.rust_root }}" ] ; then
-          root="${{ inputs.rust_root }}"
-        else
-          root="${{ github.workspace }}"
-        fi
-        echo "rust_root=$root" >> $GITHUB_OUTPUT
+      - id: rust_root
+        run: |
+          if [ -n "${{ inputs.rust_root }}" ] ; then
+            root="${{ inputs.rust_root }}"
+          else
+            root="${{ github.workspace }}"
+          fi
+          echo "rust_root=$root" >> $GITHUB_OUTPUT
 
   cargo-test:
     runs-on: buildjet-2vcpu-ubuntu-2204
@@ -126,17 +131,17 @@ jobs:
           echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
           echo "SCCACHE_REGION=us-west-2" >> $GITHUB_ENV
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build ${{ matrix.build_args }}
+      - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }}
         if: ${{ matrix.rust_target == '' }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
-      - run: cargo build ${{ matrix.build_args }} --target=${{ matrix.rust_target }}
+      - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --target=${{ matrix.rust_target }}
         if: ${{ matrix.rust_target != '' }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - if: ${{ !matrix.build_only && matrix.rust_target == '' }}
-        run: cargo test ${{ matrix.test_args }}
+        run: ${{inputs.cargo_command_env_vars}} cargo test ${{ matrix.test_args }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - if: ${{ !matrix.build_only && matrix.rust_target != '' }}
-        run: cargo test ${{ matrix.test_args }} --target=${{ matrix.rust_target }}
+        run: ${{inputs.cargo_command_env_vars}} cargo test ${{ matrix.test_args }} --target=${{ matrix.rust_target }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Print sccache stats
         run: sccache -s
@@ -178,10 +183,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Run llvm-cov
-        run: cargo llvm-cov --html
+        run: ${{inputs.cargo_command_env_vars}} cargo llvm-cov --html
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Get Cobertura report as well
-        run: cargo llvm-cov report --cobertura --output-path cobertura.xml
+        run: ${{inputs.cargo_command_env_vars}} cargo llvm-cov report --cobertura --output-path cobertura.xml
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
@@ -214,7 +219,7 @@ jobs:
       - uses: IronCoreLabs/rust-toolchain@v1
         with:
           components: rustfmt
-      - run: cargo fmt --all -- --check
+      - run: ${{inputs.cargo_command_env_vars}} cargo fmt --all -- --check
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Install cargo-sort
         uses: IronCoreLabs/rust-install@v0.1.0
@@ -226,9 +231,9 @@ jobs:
           version: latest
       - run: |
           if grep -q '\[workspace]' Cargo.toml ; then
-            cargo sort --check --workspace
+            ${{inputs.cargo_command_env_vars}} cargo sort --check --workspace
           else
-            cargo sort --check
+            ${{inputs.cargo_command_env_vars}} cargo sort --check
           fi
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Cancel workflow
@@ -255,5 +260,5 @@ jobs:
       - uses: IronCoreLabs/rust-toolchain@v1
         with:
           components: clippy
-      - run: cargo clippy -- -D warnings
+      - run: ${{inputs.cargo_command_env_vars}} cargo clippy -- -D warnings
         working-directory: ${{ needs.vars.outputs.rust_root }}
