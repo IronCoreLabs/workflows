@@ -98,7 +98,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Set Rust target
         if: ${{ matrix.rust_target != '' }}
-        run: echo "TARGET_FLAGS=--target ${{ matrix.rust_target }}" >> $GITHUB_ENV
+        run: |
+          echo "TARGET_FLAGS=--target ${{ matrix.rust_target }}" >> $GITHUB_ENV
+          echo "TARGET_DIR=./target" >> $GITHUB_ENV
       - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --release
         working-directory: ${{ steps.rust_root.outputs.rust_root }}
       - uses: actions/upload-artifact@v3
@@ -107,8 +109,6 @@ jobs:
           path: |
             ${{ steps.rust_root.outputs.rust_root }}/target/release/*.dylib
             ${{ steps.rust_root.outputs.rust_root }}/target/release/*.so
-            ${{ steps.rust_root.outputs.rust_root }}/target/${{ matrix.rust_target }}/release/*.dylib
-            ${{ steps.rust_root.outputs.rust_root }}/target/${{ matrix.rust_target }}/release/*.so
           if-no-files-found: error
       - name: Print sccache stats
         run: sccache -s
