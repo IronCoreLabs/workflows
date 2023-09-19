@@ -105,8 +105,8 @@ jobs:
         with:
           name: ${{ matrix.os }}-${{ matrix.rust_target }}
           path: |
-            ${{ steps.rust_root.outputs.rust_root }}/target/**/*.dylib
-            ${{ steps.rust_root.outputs.rust_root }}/target/**/*.so
+            ${{ steps.rust_root.outputs.rust_root }}/**/release/*.dylib
+            ${{ steps.rust_root.outputs.rust_root }}/**/release/*.so
           if-no-files-found: error
       - name: Print sccache stats
         run: sccache -s
