@@ -72,6 +72,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: vars
     strategy:
+      fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.os_matrix) }}
         build_args: "${{ fromJSON(inputs.build_matrix_build_args) }}"
