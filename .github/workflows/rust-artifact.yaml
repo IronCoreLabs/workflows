@@ -106,16 +106,14 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --release
         if: ${{ matrix.rust_target == '' }}
-        working-directory: ${{ needs.vars.outputs.rust_root }}
       - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --target=${{ matrix.rust_target }} --release
         if: ${{ matrix.rust_target != '' }}
-        working-directory: ${{ needs.vars.outputs.rust_root }}
       - uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.os }}-${{ matrix.rust_target }}
           path: |
-            ${{ needs.vars.outputs.rust_root }}/target/release/*.dylib
-            ${{ needs.vars.outputs.rust_root }}/target/release/*.so
+            ${{ needs.vars.outputs.rust_root }}/target/*/release/*.dylib
+            ${{ needs.vars.outputs.rust_root }}/target/*/release/*.so
           if-no-files-found: error
       - name: Print sccache stats
         run: sccache -s
