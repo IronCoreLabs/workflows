@@ -1,0 +1,114 @@
+# Builds the release binary for Rust projects and uploads them as artifacts.
+
+# Customization:
+# - all customization should be available via inputs. If anything isn't available, try to add it to this as an input instead of copying and modifying directly
+
+name: Rust Artifact
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  workflow_call:
+    inputs:
+      rust_root:
+        description: Root of the rust code tree. May be a relative path.
+        type: string
+        required: false
+      build_matrix_build_args:
+        description: "Matrix args for the `cargo build` called in the job. Defaults to nothing, mostly useful in includes."
+        required: false
+        default: '[""]'
+        type: string
+      build_matrix_rust_target:
+        description: "Matrix of rust targets for a build. Defaults to nothing (which will use the system target). Mostly useful in includes."
+        required: false
+        default: '[""]'
+        type: string
+      additional_system_deps:
+        description: 'A single string of additional dependencies to install on the ubuntu runner using `apt`, ex "libzmq3-dev openssl".'
+        type: string
+        required: false
+        default: ""
+      cargo_command_env_vars:
+        description: 'A space-separated string of environment variable pairs to put before all the `cargo` commands, ex "RUST_LOG=info"'
+        type: string
+        required: false
+        default: ""
+      os_matrix:
+        description: "JSON list of OSs to use for `runs-on`."
+        required: false
+        default: '["buildjet-2vcpu-ubuntu-2204"]'
+        type: string
+    secrets:
+      TOOL_CACHE_SECRET_KEY:
+        description: "AWS secret key to access our Rust tool cache S3 bucket."
+        required: true
+      SCCACHE_AWS_SECRET:
+        description: "AWS secret key to access our sccache S3 bucket."
+        required: true
+
+jobs:
+  # Assigns some variables, because GHA doesn't expand variables in inputs.*.default.
+  vars:
+    runs-on: buildjet-2vcpu-ubuntu-2204
+    outputs:
+      rust_root: ${{ steps.rust_root.outputs.rust_root }}
+    steps:
+      - id: rust_root
+        run: |
+          if [ -n "${{ inputs.rust_root }}" ] ; then
+            root="${{ inputs.rust_root }}"
+          else
+            root="${{ github.workspace }}"
+          fi
+          echo "rust_root=$root" >> $GITHUB_OUTPUT
+
+  cargo-artifact:
+    runs-on: ${{ matrix.os }}
+    needs: vars
+    strategy:
+      matrix:
+        os: ${{ fromJSON(inputs.os_matrix) }}
+        build_args: "${{ fromJSON(inputs.build_matrix_build_args) }}"
+        rust_target: "${{ fromJSON(inputs.build_matrix_rust_target) }}"
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install additional dependencies
+        if: ${{ inputs.additional_system_deps != '' }}
+        run: sudo apt install ${{ inputs.additional_system_deps }}
+      - uses: IronCoreLabs/rust-toolchain@v1
+        with:
+          targets: ${{ matrix.rust_target }}
+      - name: Install sccache
+        uses: IronCoreLabs/rust-install@v0.1.0
+        with:
+          crate: sccache
+          accesskey: AKIAU2WBY6VDTC563V7G
+          secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
+          os: ${{ matrix.os }}
+          version: latest
+      - name: Setup sccache env variables
+        run: |
+          echo "CC=$(which cc)" >> $GITHUB_ENV
+          echo "RUSTC_WRAPPER=$HOME/.cargo/bin/sccache" >> $GITHUB_ENV
+          echo "AWS_ACCESS_KEY_ID=AKIAU2WBY6VDVHUO5WSN" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }}" >> $GITHUB_ENV
+          echo "SCCACHE_BUCKET=sccache-rust" >> $GITHUB_ENV
+          echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
+          echo "SCCACHE_REGION=us-west-2" >> $GITHUB_ENV
+      - uses: Swatinem/rust-cache@v2
+      - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --release
+        if: ${{ matrix.rust_target == '' }}
+        working-directory: ${{ needs.vars.outputs.rust_root }}
+      - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --target=${{ matrix.rust_target }} --release
+        if: ${{ matrix.rust_target != '' }}
+        working-directory: ${{ needs.vars.outputs.rust_root }}
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.os }}-${{ matrix.rust_target }}
+          path: |
+            ${{ needs.vars.outputs.rust_root }}/target/release/*.dylib
+            ${{ needs.vars.outputs.rust_root }}/target/release/*.so
+          if-no-files-found: error
+      - name: Print sccache stats
+        run: sccache -s
