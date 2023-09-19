@@ -7,8 +7,6 @@ name: Rust CI
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-env:
-  CLASSPATH: "$CLASSPATH:/usr/share/java/jna.jar"
 on:
   workflow_call:
     inputs:
