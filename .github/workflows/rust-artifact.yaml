@@ -96,11 +96,10 @@ jobs:
           echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
           echo "SCCACHE_REGION=us-west-2" >> $GITHUB_ENV
       - uses: Swatinem/rust-cache@v2
-      - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --release
-        if: ${{ matrix.rust_target == '' }}
-        working-directory: ${{ steps.rust_root.outputs.rust_root }}
-      - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --target=${{ matrix.rust_target }} --release
+      - name: Set Rust target
         if: ${{ matrix.rust_target != '' }}
+        run: echo "TARGET_FLAGS=--target ${{ matrix.rust_target }}" >> $GITHUB_ENV
+      - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --release
         working-directory: ${{ steps.rust_root.outputs.rust_root }}
       - uses: actions/upload-artifact@v3
         with:
