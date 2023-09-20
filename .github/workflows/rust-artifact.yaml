@@ -37,7 +37,7 @@ on:
       os_matrix:
         description: "JSON list of OSs to use for `runs-on`."
         required: false
-        default: '["buildjet-2vcpu-ubuntu-2204"]'
+        default: '["buildjet-2vcpu-ubuntu-2204", "buildjet-4vcpu-ubuntu-2204-arm"]'
         type: string
       matrix_include:
         description: "Specific combinations to add to the build matrix. Available values are: os, build_args, rust_target. Ex [{os: ubuntu-22.04, rust_target: x86_64-unknown-linux-musl}]"
