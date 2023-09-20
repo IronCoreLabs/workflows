@@ -100,6 +100,7 @@ jobs:
         if: ${{ matrix.rust_target != '' }}
         run: |
           echo "TARGET_FLAGS=--target ${{ matrix.rust_target }}" >> $GITHUB_ENV
+          # Make the target directory the same as the when `rust_target` is empty
           echo "TARGET_DIR=./target" >> $GITHUB_ENV
       - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --release
         working-directory: ${{ steps.rust_root.outputs.rust_root }}
