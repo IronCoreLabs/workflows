@@ -44,6 +44,11 @@ on:
         required: false
         default: "[]"
         type: string
+      build_profile:
+        description: "Build profile to use, ex 'release' or 'release-smaller'"
+        required: false
+        default: "release"
+        type: string
     secrets:
       TOOL_CACHE_SECRET_KEY:
         description: "AWS secret key to access our Rust tool cache S3 bucket."
@@ -102,7 +107,7 @@ jobs:
           echo "TARGET_FLAGS=--target ${{ matrix.rust_target }}" >> $GITHUB_ENV
           # Make the target directory the same as the when `rust_target` is empty
           echo "TARGET_DIR=./target" >> $GITHUB_ENV
-      - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --release
+      - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --profile ${{ inputs.build_profile }}
         working-directory: ${{ steps.rust_root.outputs.rust_root }}
       - uses: actions/upload-artifact@v3
         with:
