@@ -89,7 +89,7 @@ jobs:
           crate: sccache
           accesskey: AKIAU2WBY6VDTC563V7G
           secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
-          os: ${{ toJson(matrix.os) }}
+          os: ${{ join(matrix.os) }}
           version: latest
       - name: Setup sccache env variables
         run: |
@@ -111,7 +111,7 @@ jobs:
         working-directory: ${{ steps.rust_root.outputs.rust_root }}
       - uses: actions/upload-artifact@v3
         with:
-          name: ${{ toJson(matrix.os) }}-${{ matrix.rust_target }}
+          name: ${{ join(matrix.os) }}-${{ matrix.rust_target }}
           path: |
             ${{ steps.rust_root.outputs.rust_root }}/target/release/*.dylib
             ${{ steps.rust_root.outputs.rust_root }}/target/release/*.so
