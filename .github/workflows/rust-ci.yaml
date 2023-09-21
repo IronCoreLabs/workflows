@@ -131,6 +131,8 @@ jobs:
           echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
           echo "SCCACHE_REGION=us-west-2" >> $GITHUB_ENV
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-provider: buildjet
       - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }}
         if: ${{ matrix.rust_target == '' }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
@@ -181,6 +183,8 @@ jobs:
           echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
           echo "SCCACHE_REGION=us-west-2" >> $GITHUB_ENV
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-provider: buildjet
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Run llvm-cov
         run: ${{inputs.cargo_command_env_vars}} cargo llvm-cov --html
