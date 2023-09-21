@@ -1,0 +1,119 @@
+# Builds the release binary for Rust projects and uploads them as artifacts.
+
+# Customization:
+# - all customization should be available via inputs. If anything isn't available, try to add it to this as an input instead of copying and modifying directly
+
+name: Rust Artifact
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  workflow_call:
+    inputs:
+      rust_root:
+        description: Root of the rust code tree. May be a relative path.
+        type: string
+        required: false
+      build_matrix_build_args:
+        description: "Matrix args for the `cargo build` called in the job. Defaults to nothing, mostly useful in includes."
+        required: false
+        default: '[""]'
+        type: string
+      build_matrix_rust_target:
+        description: "Matrix of rust targets for a build. Defaults to nothing (which will use the system target). Mostly useful in includes."
+        required: false
+        default: '[""]'
+        type: string
+      additional_system_deps:
+        description: 'A single string of additional dependencies to install on the ubuntu runner using `apt`, ex "libzmq3-dev openssl".'
+        type: string
+        required: false
+        default: ""
+      cargo_command_env_vars:
+        description: 'A space-separated string of environment variable pairs to put before all the `cargo` commands, ex "RUST_LOG=info"'
+        type: string
+        required: false
+        default: ""
+      os_matrix:
+        description: "JSON list of OSs to use for `runs-on`."
+        required: false
+        default: '["buildjet-2vcpu-ubuntu-2204", "buildjet-4vcpu-ubuntu-2204-arm"]'
+        type: string
+      matrix_include:
+        description: "Specific combinations to add to the build matrix. Available values are: os, build_args, rust_target. Ex [{os: ubuntu-22.04, rust_target: x86_64-unknown-linux-musl}]"
+        required: false
+        default: "[]"
+        type: string
+      build_profile:
+        description: "Build profile to use, ex 'release' or 'release-smaller'"
+        required: false
+        default: "release"
+        type: string
+    secrets:
+      TOOL_CACHE_SECRET_KEY:
+        description: "AWS secret key to access our Rust tool cache S3 bucket."
+        required: true
+      SCCACHE_AWS_SECRET:
+        description: "AWS secret key to access our sccache S3 bucket."
+        required: true
+
+jobs:
+  cargo-artifact:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.os_matrix) }}
+        build_args: "${{ fromJSON(inputs.build_matrix_build_args) }}"
+        rust_target: "${{ fromJSON(inputs.build_matrix_rust_target) }}"
+        include: ${{ fromJSON(inputs.matrix_include) }}
+    steps:
+      - uses: actions/checkout@v3
+      - id: rust_root
+        run: |
+          if [ -n "${{ inputs.rust_root }}" ] ; then
+              root="${{ inputs.rust_root }}"
+          else
+              root="${{ github.workspace }}"
+          fi
+          echo "rust_root=$root" >> $GITHUB_OUTPUT
+      - name: Install additional dependencies
+        if: ${{ inputs.additional_system_deps != '' }}
+        run: sudo apt install ${{ inputs.additional_system_deps }}
+      - uses: IronCoreLabs/rust-toolchain@v1
+        with:
+          targets: ${{ matrix.rust_target }}
+      - name: Install sccache
+        uses: IronCoreLabs/rust-install@v0.1.0
+        with:
+          crate: sccache
+          accesskey: AKIAU2WBY6VDTC563V7G
+          secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
+          os: ${{ join(matrix.os) }}
+          version: latest
+      - name: Setup sccache env variables
+        run: |
+          echo "CC=$(which cc)" >> $GITHUB_ENV
+          echo "RUSTC_WRAPPER=$HOME/.cargo/bin/sccache" >> $GITHUB_ENV
+          echo "AWS_ACCESS_KEY_ID=AKIAU2WBY6VDVHUO5WSN" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }}" >> $GITHUB_ENV
+          echo "SCCACHE_BUCKET=sccache-rust" >> $GITHUB_ENV
+          echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
+          echo "SCCACHE_REGION=us-west-2" >> $GITHUB_ENV
+      - name: Set Rust target
+        if: ${{ matrix.rust_target != '' }}
+        run: |
+          echo "TARGET_FLAGS=--target ${{ matrix.rust_target }}" >> $GITHUB_ENV
+          # Make the target directory the same as the when `rust_target` is empty
+          echo "TARGET_DIR=./target" >> $GITHUB_ENV
+      - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --profile ${{ inputs.build_profile }}
+        working-directory: ${{ steps.rust_root.outputs.rust_root }}
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ join(matrix.os) }}-${{ matrix.rust_target }}
+          path: |
+            ${{ steps.rust_root.outputs.rust_root }}/target/${{ inputs.build_profile }}/*.dylib
+            ${{ steps.rust_root.outputs.rust_root }}/target/${{ inputs.build_profile }}/*.so
+          if-no-files-found: error
+      - name: Print sccache stats
+        run: sccache -s
