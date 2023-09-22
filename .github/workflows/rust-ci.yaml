@@ -138,17 +138,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-provider: buildjet
-      - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }}
-        if: ${{ matrix.rust_target == '' }}
-        working-directory: ${{ needs.vars.outputs.rust_root }}
-      - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --target=${{ matrix.rust_target }}
+      - name: Set Rust target
         if: ${{ matrix.rust_target != '' }}
+        run: echo "TARGET_FLAGS=--target ${{ matrix.rust_target }}" >> $GITHUB_ENV
+      - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
-      - if: ${{ !matrix.build_only && matrix.rust_target == '' }}
-        run: ${{inputs.cargo_command_env_vars}} cargo test ${{ matrix.test_args }} ${{ inputs.cargo_command_test_args }}
-        working-directory: ${{ needs.vars.outputs.rust_root }}
-      - if: ${{ !matrix.build_only && matrix.rust_target != '' }}
-        run: ${{inputs.cargo_command_env_vars}} cargo test ${{ matrix.test_args }} ${{ inputs.cargo_command_test_args }} --target=${{ matrix.rust_target }}
+      - run: ${{inputs.cargo_command_env_vars}} cargo test ${{ matrix.test_args }} ${{ inputs.cargo_command_test_args }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Print sccache stats
         run: sccache -s
