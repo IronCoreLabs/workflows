@@ -62,6 +62,11 @@ on:
         type: string
         required: false
         default: ""
+      cargo_command_test_args:
+        description: "A string of args to put after the `cargo test` command in all invocations throughout the workflow."
+        type: string
+        required: false
+        default: ""
     secrets:
       TOOL_CACHE_SECRET_KEY:
         description: "AWS secret key to access our Rust tool cache S3 bucket."
@@ -140,10 +145,10 @@ jobs:
         if: ${{ matrix.rust_target != '' }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - if: ${{ !matrix.build_only && matrix.rust_target == '' }}
-        run: ${{inputs.cargo_command_env_vars}} cargo test ${{ matrix.test_args }}
+        run: ${{inputs.cargo_command_env_vars}} cargo test ${{ matrix.test_args }} ${{ inputs.cargo_command_test_args }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - if: ${{ !matrix.build_only && matrix.rust_target != '' }}
-        run: ${{inputs.cargo_command_env_vars}} cargo test ${{ matrix.test_args }} --target=${{ matrix.rust_target }}
+        run: ${{inputs.cargo_command_env_vars}} cargo test ${{ matrix.test_args }} ${{ inputs.cargo_command_test_args }} --target=${{ matrix.rust_target }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Print sccache stats
         run: sccache -s
@@ -187,10 +192,10 @@ jobs:
           cache-provider: buildjet
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Run llvm-cov
-        run: ${{inputs.cargo_command_env_vars}} cargo llvm-cov --html
+        run: ${{inputs.cargo_command_env_vars}} cargo llvm-cov --html ${{ inputs.cargo_command_test_args }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Get Cobertura report as well
-        run: ${{inputs.cargo_command_env_vars}} cargo llvm-cov report --cobertura --output-path cobertura.xml
+        run: ${{inputs.cargo_command_env_vars}} cargo llvm-cov report --cobertura --output-path cobertura.xml ${{ inputs.cargo_command_test_args }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Archive code coverage results
         uses: actions/upload-artifact@v3
