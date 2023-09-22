@@ -144,6 +144,7 @@ jobs:
       - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - run: ${{inputs.cargo_command_env_vars}} cargo test ${{ matrix.test_args }} ${{ inputs.cargo_command_test_args }}
+        if: ${{ !matrix.build_only }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Print sccache stats
         run: sccache -s
