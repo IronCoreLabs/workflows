@@ -87,7 +87,7 @@ jobs:
           if [ -n "${{ inputs.rust_root }}" ] ; then
             root="${{ inputs.rust_root }}"
           else
-            root="${{ github.workspace }}"
+            root="."
           fi
           echo "rust_root=$root" >> $GITHUB_OUTPUT
 
