@@ -148,8 +148,9 @@ jobs:
 
   docker:
     needs: image
-    env:
+    env: # Needed for custom commands to access these variables at runtime
       LONGTAG: ${{ needs.image.outputs.longtag }}
+      DOCKER_IMAGE: ${{ inputs.image_name }}
     strategy:
       matrix:
         runs_on: ${{ fromJson(inputs.docker_runs_on) }}
@@ -284,6 +285,11 @@ jobs:
         # Each entry in image is a space separated list of full image names with tags. We'll append "-$ARCH" to each one. The first
         # in each list is expected to be the most canonical.
         image: "${{ fromJSON(needs.image.outputs.images) }}"
+    env: # Needed for custom commands to access these variables at runtime
+      TAGS: ${{ needs.image.outputs.tags }}
+      ARCHS: ${{ inputs.archs }}
+      LONGTAG: ${{ needs.image.outputs.longtag }}
+      DOCKER_IMAGE: ${{ inputs.image_name }}
     steps:
       - uses: actions/checkout@v3
         with:
