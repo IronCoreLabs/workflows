@@ -1,0 +1,318 @@
+# This workflow builds a docker container, plus more:
+# - Performs a virus scan.
+# - Pushes the container to a registry.
+# - If triggered by a prerelease, this workflow publishes the release when it's done. (This triggers the deploy workflow.)
+# - If triggered by workflow_dispatch:
+#   - Takes an optional git ref for sources to build from.
+#   - Takes an optional image tag name.
+#   - Optionally triggers deploy when done.
+
+name: Docker
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        description: Space-separated list of image base names
+        type: string
+        required: true
+      build_command:
+        description: Command to run to build docker image.
+        type: string
+        required: false
+        default: docker build --pull -t ${DOCKER_FULL_NAME} .
+      scan_command:
+        description: Commands to run to scan the Docker container
+        type: string
+        required: false
+        default: |
+          docker save -o /tmp/docker.tar "${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
+          clamscan /tmp/docker.tar
+      push_command:
+        description: Command to run to push docker image.
+        type: string
+        required: false
+        default: docker push "${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
+      container_hash_command:
+        description: Command to run to calculate image hash.
+        type: string
+        required: false
+        default: |
+          # Now that we've pushed the image, we can retrieve its hash and sanity check it.
+          IMG="${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
+          HASH=$(docker inspect --format='{{ index .RepoDigests 0 }}' "${IMG}" | sed 's/.*@sha256://')
+          echo "hash=${HASH}" >> "$GITHUB_OUTPUT"
+          [[ "${HASH}" =~ ^[0-9a-f]+$ ]]
+      update_buildlog_command:
+        description: Command to run to update buildlog.
+        type: string
+        required: false
+        default: .github/docker.buildlog.sh "$(basename "${{ inputs.buildlog_filename }}")" "${{ needs.image.outputs.longtag }}-${{ steps.arch.outputs.arch }}" "${{ steps.container-hash.outputs.hash }}"
+      pull_images_command:
+        description: Command to run to pull images.
+        type: string
+        required: false
+        default: |
+          for ARCH in ${{ inputs.archs }} ; do
+            docker pull "${{ steps.name.outputs.canonical }}-${ARCH}"
+          done
+      create_and_push_manifest_command:
+        description: Command to run to create and push manifest.
+        type: string
+        required: false
+        default: |
+          for I in ${{ matrix.image }} ; do
+            for ARCH in ${{ inputs.archs }} ; do
+              echo "${{ steps.name.outputs.canonical }}-${ARCH}"
+            done | \
+            xargs docker manifest create "${I}"
+            docker manifest push "${I}"
+          done
+      buildlog_repo:
+        type: string
+        required: false
+        default: ""
+      buildlog_filename:
+        type: string
+        required: false
+        default: "${{ github.repository }}.json"
+      additional_decryption_files:
+        description: Space-separated list of additional `.iron` files to decrypt. Gcloud credentials will already be decrypted.
+        type: string
+        required: false
+        default: ""
+      archs:
+        description: Space-separated list of architectures to build.
+        type: string
+        required: false
+        default: amd64
+      docker_runs_on:
+        description: JSON list of runners to use for `docker` job within the workflow.
+        type: string
+        required: false
+        default: "[buildjet-2vcpu-ubuntu-2204]"
+      other_jobs_runs_on:
+        description: Runner to use for `image`, `publish`, and `trigger-deploy` jobs within the workflow.
+        type: string
+        required: false
+        default: "ubuntu-22.04"
+
+jobs:
+  image:
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ${{ inputs.other_jobs_runs_on }}
+    outputs:
+      images: ${{ steps.images.outputs.images }}
+      tags: ${{ steps.tag.outputs.tags }}
+      longtag: ${{ steps.tag.outputs.longest }}
+    steps:
+      - name: Sanity check
+        run: |
+          if [ "${DOCKER_IMAGE}" = "gcr.io/ironcore-dev-1/CHANGEME" ] ; then
+            echo "You must customize this workflow by overriding env.DOCKER_IMAGE."
+            echo "Create a file .github/docker-patch.yaml."
+            echo "See github-actions/README.md in the depot repo."
+            exit 1
+          fi
+      - name: Set docker image names
+        id: name
+        run: echo "name=${DOCKER_IMAGE}" >> "$GITHUB_OUTPUT"
+      - name: Set docker image tags
+        id: tag
+        run: |
+          if [ -n "${{ github.event.release.name }}" ] ; then
+            # If TAG is 1.2.3, set TAGS to "1.2.3 1.2 1".
+            TAG="${{ github.event.release.name }}"
+            while ! [ -z "${TAG}" ] ; do
+              TAGS="${TAGS} ${TAG}"
+              TAG=$(echo ${TAG} | sed -E 's,\.?[^.]+$,,')
+            done
+            TAGS=$(echo $TAGS | sed 's,^ ,,')
+          fi
+          if [ -n "${{ github.event.inputs.tags }}" ] ; then
+            TAGS="${{ github.event.inputs.tags }}"
+          fi
+          if [ "${{ github.event_name }}" = "pull_request" ] ; then
+            PR=$(jq < "${GITHUB_EVENT_PATH}" -r '.number')
+            TITLE="$(jq < "${GITHUB_EVENT_PATH}" -r '.pull_request.title' | tr -cs '[:alnum:]' - | sed -e 's/^-//' -e 's/-$//')"
+            TAGS="pr-${PR}-${TITLE}"
+          fi
+          if [ -z "${TAGS}" ] ; then
+            echo "Couldn't set tags."
+            exit 1
+          fi
+          # Tags is a space-separated list of tags. Export the longest one so it can be used in the buildlog.
+          for T in ${TAGS} ; do
+            if [ ${#T} -gt ${#LONGESTTAG} ] ; then
+              LONGESTTAG=$T
+            fi
+          done
+          echo "longest=${LONGESTTAG}" >> "$GITHUB_OUTPUT"
+          # Tags is a space-separated list of tags. Sort them from longest to shortest.
+          for T in ${TAGS} ; do
+            echo "$T"
+          done | awk '{ print length, $0 }' | sort -nr | awk '{ print $2 }' | tee tags
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+      - name: Output docker image identifiers
+        id: images
+        run: |
+          # DOCKER_IMAGE is a space-separated list of image base names. Make a cross product with tags.
+          for I in ${{ steps.name.outputs.name }} ; do
+            for T in ${{ steps.tag.outputs.tags }} ; do
+              echo -n "${I}:${T} "
+            done
+            echo ""
+          done | \
+          # Eat the trailing space on each line, then convert to a JSON array.
+          sed 's/ $//' | jq -cR '[., inputs]' | tee images
+          echo "Docker tags: '${{ steps.tag.outputs.tags }}'"
+          echo "All images: '$(cat images)'"
+          echo "images=$(cat images)" >> "$GITHUB_OUTPUT"
+
+  docker:
+    needs: image
+    strategy:
+      matrix:
+        runs_on: ${{fromJson(inputs.docker_runs_on)}}
+        # Each entry in image is a space separated list of full image names with tags. We'll append "-$ARCH" to each one. The first
+        # in each list is expected to be the most canonical.
+        image: "${{ fromJSON(needs.image.outputs.images) }}"
+    runs-on: ${{ matrix.runs_on }}
+    steps:
+      - name: Log in to docker
+        # This avoids rate limits. https://buildjet.com/for-github-actions/docs/faq#docker-rate-limiting
+        uses: docker/login-action@v2
+        with:
+          username: ironcoreci
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Get canonical arch name
+        id: arch
+        run: |
+          ARCH="${{ runner.arch }}"
+          case "${ARCH}" in
+          X64)
+            ARCH=amd64
+            ;;
+          ARM64)
+            ARCH=arm64
+            ;;
+          *)
+            echo "Unknown arch '${ARCH}'"
+            exit 1
+          esac
+          echo "Arch is '${ARCH}'"
+          echo "arch=${ARCH}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v3
+        with:
+          # Either the workflow_dispatch ref, or the prerelease tag, whichever is set.
+          ref: ${{ github.event.inputs.ref }}${{ github.event.release.tag_name }}
+      - name: Install clamav
+        if: ${{ ! contains(matrix.runs_on, 'self-hosted') }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clamav
+          sudo sed -i -e 's/^ReceiveTimeout.*/ReceiveTimeout 300/' /etc/clamav/freshclam.conf
+          sudo systemctl stop clamav-freshclam
+          sudo freshclam
+          sudo systemctl start clamav-freshclam
+      - name: Decrypt files
+        uses: IronCoreLabs/ironhide-actions/decrypt@v3
+        with:
+          keys: ${{ secrets.IRONHIDE_KEYS }}
+          input: .github/gcloud-auth.json.iron ${{ inputs.additional_decryption_files }}
+      - name: Configure gcloud
+        run: |
+          gcloud auth activate-service-account --key-file .github/gcloud-auth.json
+          gcloud auth configure-docker --quiet
+      - name: Get canonical image name
+        id: name
+        run: echo "canonical=$(echo ${{ matrix.image }} | sed 's/ .*//')" >> "$GITHUB_OUTPUT"
+      - name: Build docker
+        env:
+          DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}
+        run: ${{ inputs.build_command }}
+      # If the above command didn't produce the right image, the scan below will fail. That's what we want.
+      - name: Scan docker image
+        run: ${{ inputs.scan_command }}
+      - name: Push it!
+        run: ${{ inputs.push_command }}
+      - name: Container hash
+        id: container-hash
+        run: ${{ inputs.container_hash_command }}
+      - name: Check out buildlog repo
+        # The head_ref or source branch of the pull request in a workflow run. This property is only available when the event that triggers a workflow run is either pull_request or pull_request_target.
+        # So this conditional checks that the trigger was _not_ a pull_request.
+        # The "contains()" conditional checks that this is a release like 1.2.3, not a prerelease like 1.2.3-rc.1.
+        if: ${{ github.head_ref == '' && inputs.buildlog_repo != '' && !contains(needs.image.outputs.longtag, '-') }}
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.buildlog_repo }}
+          token: ${{ secrets.WORKFLOW_PAT }}
+          fetch-depth: 2
+          path: .github/tmp_buildlog_dir
+      - name: Configure Git
+        if: ${{ github.head_ref == '' && inputs.buildlog_repo != '' && !contains(needs.image.outputs.longtag, '-') }}
+        run: |
+          git config --global user.email "ops@ironcorelabs.com"
+          git config --global user.name "${{ github.repository }} CI"
+      - name: Update buildlog
+        if: ${{ github.head_ref == '' && inputs.buildlog_repo != '' && !contains(needs.image.outputs.longtag, '-') }}
+        run: ${{ inputs.update_buildlog_command }}
+
+  # This job pushes the image manifest, AKA multi-arch image.
+  publish:
+    needs: [docker, image]
+    runs-on: ${{ inputs.other_jobs_runs_on }}
+    strategy:
+      matrix:
+        # Each entry in image is a space separated list of full image names with tags. We'll append "-$ARCH" to each one. The first
+        # in each list is expected to be the most canonical.
+        image: "${{ fromJSON(needs.image.outputs.images) }}"
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # Either the workflow_dispatch ref, or the prerelease tag, whichever is set.
+          ref: ${{ github.event.inputs.ref }}${{ github.event.release.tag_name }}
+      - name: Decrypt gcloud credentials
+        uses: IronCoreLabs/ironhide-actions/decrypt@v3
+        with:
+          keys: ${{ secrets.IRONHIDE_KEYS }}
+          input: .github/gcloud-auth.json.iron
+      - name: Configure gcloud
+        run: |
+          gcloud auth activate-service-account --key-file .github/gcloud-auth.json
+          gcloud auth configure-docker --quiet
+      - name: Get canonical image name
+        id: name
+        run: |
+          echo "canonical=$(echo ${{ matrix.image }} | sed 's/ .*//')" >> "$GITHUB_OUTPUT"
+      - name: Pull images
+        run: ${{ inputs.pull_images_command }}
+      - name: Create and push manifest
+        run: ${{ inputs.create_and_push_manifest_command }}
+
+  #  Trigger deployment.
+  trigger-deploy:
+    needs: [publish, image]
+    runs-on: ${{ inputs.other_jobs_runs_on }}
+    steps:
+      - name: Publish release
+        if: github.event.release != null
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.WORKFLOW_PAT }}
+          prerelease: false
+          allowUpdates: true
+          tag: ${{ github.event.release.tag_name }}
+          name: ${{ github.event.release.name }}
+          omitBodyDuringUpdate: true
+      - name: Trigger deploy (workflow_dispatch)
+        # This happens automatically if we were triggered by a prerelease, because of the "publish release" step above.
+        if: github.event.inputs.deploy == 'true'
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: Deploy
+          token: ${{ secrets.WORKFLOW_PAT }}
+          inputs: '{ "newTag": "${{ needs.image.outputs.tags }}" }'
