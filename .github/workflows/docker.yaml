@@ -75,7 +75,7 @@ on:
         description: JSON list of runners to use for `docker` job within the workflow.
         type: string
         required: false
-        default: "[buildjet-2vcpu-ubuntu-2204]"
+        default: '["buildjet-2vcpu-ubuntu-2204"]'
       other_jobs_runs_on:
         description: Runner to use for `image`, `publish`, and `trigger-deploy` jobs within the workflow.
         type: string
@@ -158,7 +158,7 @@ jobs:
     needs: image
     strategy:
       matrix:
-        runs_on: ${{fromJson(inputs.docker_runs_on)}}
+        runs_on: ${{ fromJson(inputs.docker_runs_on) }}
         # Each entry in image is a space separated list of full image names with tags. We'll append "-$ARCH" to each one. The first
         # in each list is expected to be the most canonical.
         image: "${{ fromJSON(needs.image.outputs.images) }}"
