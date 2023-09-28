@@ -91,17 +91,9 @@ jobs:
       tags: ${{ steps.tag.outputs.tags }}
       longtag: ${{ steps.tag.outputs.longest }}
     steps:
-      - name: Sanity check
-        run: |
-          if [ "${DOCKER_IMAGE}" = "gcr.io/ironcore-dev-1/CHANGEME" ] ; then
-            echo "You must customize this workflow by overriding env.DOCKER_IMAGE."
-            echo "Create a file .github/docker-patch.yaml."
-            echo "See github-actions/README.md in the depot repo."
-            exit 1
-          fi
       - name: Set docker image names
         id: name
-        run: echo "name=${DOCKER_IMAGE}" >> "$GITHUB_OUTPUT"
+        run: echo "name=${{inputs.image_name}}" >> "$GITHUB_OUTPUT"
       - name: Set docker image tags
         id: tag
         run: |
@@ -161,7 +153,7 @@ jobs:
         runs_on: ${{ fromJson(inputs.docker_runs_on) }}
         # Each entry in image is a space separated list of full image names with tags. We'll append "-$ARCH" to each one. The first
         # in each list is expected to be the most canonical.
-        image: "${{ fromJSON(needs.image.outputs.images) }}"
+        image: "${{ fromJson(needs.image.outputs.images) }}"
     runs-on: ${{ matrix.runs_on }}
     steps:
       - name: Log in to docker
