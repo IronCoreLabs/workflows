@@ -207,12 +207,12 @@ jobs:
       - name: Build docker (Default)
         if: inputs.build_command == ''
         env:
-          DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${ARCH}
+          DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ env.ARCH }}
         run: docker build --pull -t ${DOCKER_FULL_NAME} .
       - name: Build docker (Overridden)
         if: inputs.build_command != ''
         env:
-          DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${ARCH}
+          DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ env.ARCH }}
         run: ${{ inputs.build_command }}
       - name: Scan docker image (Default)
         if: inputs.scan_command == ''
