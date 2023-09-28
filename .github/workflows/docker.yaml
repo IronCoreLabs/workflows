@@ -163,7 +163,7 @@ jobs:
           username: ironcoreci
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Get canonical arch name
-        id: arch
+        # id: arch
         run: |
           ARCH="${{ runner.arch }}"
           case "${ARCH}" in
@@ -178,7 +178,7 @@ jobs:
             exit 1
           esac
           echo "Arch is '${ARCH}'"
-          echo "arch=${ARCH}" >> "$GITHUB_OUTPUT"
+          echo "arch=${ARCH}" >> "$GITHUB_ENV"
       - uses: actions/checkout@v3
         with:
           # Either the workflow_dispatch ref, or the prerelease tag, whichever is set.
@@ -207,17 +207,17 @@ jobs:
       - name: Build docker (Default)
         if: inputs.build_command == ''
         env:
-          DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}
+          DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${ARCH}
         run: docker build --pull -t ${DOCKER_FULL_NAME} .
       - name: Build docker (Overridden)
         if: inputs.build_command != ''
         env:
-          DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}
+          DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${ARCH}
         run: ${{ inputs.build_command }}
       - name: Scan docker image (Default)
         if: inputs.scan_command == ''
         run: |
-          docker save -o /tmp/docker.tar "${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
+          docker save -o /tmp/docker.tar "${{ steps.name.outputs.canonical }}-${ARCH}"
           clamscan /tmp/docker.tar
       # If the above command didn't produce the right image, the scan below will fail. That's what we want.
       - name: Scan docker image (Overridden)
@@ -225,7 +225,7 @@ jobs:
         run: ${{ inputs.scan_command }}
       - name: Push it! (Default)
         if: inputs.push_command == ''
-        run: docker push "${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
+        run: docker push "${{ steps.name.outputs.canonical }}-${ARCH}"
       - name: Push it! (Overridden)
         if: inputs.push_command != ''
         run: ${{ inputs.push_command }}
@@ -234,7 +234,7 @@ jobs:
         id: container-hash-default
         run: |
           # Now that we've pushed the image, we can retrieve its hash and sanity check it.
-          IMG="${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
+          IMG="${{ steps.name.outputs.canonical }}-${ARCH}"
           HASH=$(docker inspect --format='{{ index .RepoDigests 0 }}' "${IMG}" | sed 's/.*@sha256://')
           echo "hash=${HASH}" >> "$GITHUB_OUTPUT"
           [[ "${HASH}" =~ ^[0-9a-f]+$ ]]
@@ -268,7 +268,7 @@ jobs:
           git config --global user.name "${{ github.repository }} CI"
       - name: Update buildlog (Default)
         if: ${{ inputs.update_buildlog_command == '' && github.head_ref == '' && inputs.buildlog_repo != '' && !contains(needs.image.outputs.longtag, '-')}}
-        run: .github/docker.buildlog.sh "$(basename "${{ inputs.buildlog_filename }}")" "${{ needs.image.outputs.longtag }}-${{ steps.arch.outputs.arch }}" "${{ steps.container-hash.outputs.hash }}"
+        run: .github/docker.buildlog.sh "$(basename "${{ inputs.buildlog_filename }}")" "${{ needs.image.outputs.longtag }}-${ARCH}" "${{ steps.container-hash.outputs.hash }}"
       - name: Update buildlog (Overridden)
         if: ${{ inputs.update_buildlog_command != '' && github.head_ref == '' && inputs.buildlog_repo != '' && !contains(needs.image.outputs.longtag, '-') }}
         run: ${{ inputs.update_buildlog_command }}
