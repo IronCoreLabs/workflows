@@ -178,7 +178,7 @@ jobs:
             exit 1
           esac
           echo "Arch is '${ARCH}'"
-          echo "arch=${ARCH}" >> "$GITHUB_ENV"
+          echo "ARCH=${ARCH}" >> "$GITHUB_ENV"
       - uses: actions/checkout@v3
         with:
           # Either the workflow_dispatch ref, or the prerelease tag, whichever is set.
