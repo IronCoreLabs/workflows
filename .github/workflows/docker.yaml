@@ -148,6 +148,8 @@ jobs:
 
   docker:
     needs: image
+    env:
+      LONGTAG: ${{ needs.image.outputs.longtag }}
     strategy:
       matrix:
         runs_on: ${{ fromJson(inputs.docker_runs_on) }}
