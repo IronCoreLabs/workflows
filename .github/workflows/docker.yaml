@@ -245,7 +245,7 @@ jobs:
       - name: Output container hash
         id: container-hash
         run: |
-          if [-n "${{ steps.container-hash-default.outputs.hash }}" ] ; then
+          if [ -n "${{ steps.container-hash-default.outputs.hash }}" ] ; then
             echo "hash=${{ steps.container-hash-default.outputs.hash }}" >> "$GITHUB_OUTPUT"
           else
             echo "hash=${{ steps.container-hash-overridden.outputs.hash }}" >> "$GITHUB_OUTPUT"
