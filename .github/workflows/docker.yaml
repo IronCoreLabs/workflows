@@ -8,9 +8,7 @@
 #   - Optionally triggers deploy when done.
 
 name: Docker
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+
 on:
   workflow_call:
     inputs:
