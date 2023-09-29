@@ -350,6 +350,10 @@ jobs:
   trigger-deploy:
     needs: [publish, image]
     runs-on: ${{ inputs.other_jobs_runs_on }}
+    env:
+      IMAGE_NAME: ${{ needs.image.outputs.name }} # TODO: TSP expects this but it doesn't exist
+      IMAGE_TAGS: ${{ needs.image.outputs.tags }}
+      LAST_PR: ${{ needs.image.outputs.last_pr }} # TODO: TSP expects this but it doesn't exist
     steps:
       - name: Publish release
         if: github.event.release != null
