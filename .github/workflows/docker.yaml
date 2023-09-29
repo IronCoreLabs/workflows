@@ -89,6 +89,11 @@ on:
         type: boolean
         required: false
         default: false
+      extra_commands:
+        description: Extra commands to run before building the Docker image
+        type: string
+        required: false
+        default: ""
 
 env:
   DOCKER_BUILDKIT: 1
@@ -236,6 +241,9 @@ jobs:
       - name: Get canonical image name
         id: name
         run: echo "canonical=$(echo ${{ matrix.image }} | sed 's/ .*//')" >> "$GITHUB_OUTPUT"
+      - name: Extra commands
+        if: inputs.extra_commands != ''
+        run: ${{ inputs.extra_commands }}
       - name: Build docker (Default)
         if: inputs.build_command == ''
         env:
