@@ -84,6 +84,11 @@ on:
         type: string
         required: false
         default: "ubuntu-22.04"
+      configure_git_ssh:
+        description: Whether to configure git ssh with LEEROY_PRIVATE_SSH_KEY repository secret.
+        type: boolean
+        required: false
+        default: false
 
 env:
   DOCKER_BUILDKIT: 1
@@ -198,6 +203,14 @@ jobs:
           esac
           echo "Arch is '${ARCH}'"
           echo "ARCH=${ARCH}" >> "$GITHUB_ENV"
+      - name: Configure git ssh access
+        if: inputs.configure_git_ssh
+        run: |
+          mkdir -p "${HOME}/.ssh"
+          chmod 700 "${HOME}/.ssh"
+          echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
+          chmod 600 "${HOME}/.ssh/id_ed25519"
+          ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - uses: actions/checkout@v3
         with:
           # Either the workflow_dispatch ref, or the prerelease tag, whichever is set.
