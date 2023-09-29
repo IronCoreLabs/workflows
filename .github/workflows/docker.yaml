@@ -51,6 +51,11 @@ on:
         type: string
         required: false
         default: ""
+      trigger_deploy_inputs:
+        description: Inputs to the Trigger Deploy step
+        type: string
+        required: false
+        default: ""
       buildlog_repo:
         type: string
         required: false
@@ -80,18 +85,20 @@ on:
         required: false
         default: "ubuntu-22.04"
 
+env:
+  DOCKER_BUILDKIT: 1
+
 jobs:
   image:
     if: github.actor != 'dependabot[bot]'
     runs-on: ${{ inputs.other_jobs_runs_on }}
+    env:
+      DOCKER_IMAGE: ${{ inputs.image_name }}
     outputs:
       images: ${{ steps.images.outputs.images }}
       tags: ${{ steps.tag.outputs.tags }}
       longtag: ${{ steps.tag.outputs.longest }}
     steps:
-      - name: Set docker image names
-        id: name
-        run: echo "name=${{inputs.image_name}}" >> "$GITHUB_OUTPUT"
       - name: Set docker image tags
         id: tag
         run: |
@@ -128,6 +135,16 @@ jobs:
             echo "$T"
           done | awk '{ print length, $0 }' | sort -nr | awk '{ print $2 }' | tee tags
           echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+      - name: Set docker image names
+        id: name
+        run: |
+          # TODO: should this be conditional? it was a patch before, but would we ever not want it to be true?
+          for TAG in ${{ steps.tag.outputs.tags }} ; do
+            if ! [[ ${TAG} =~ ^[0-9.]*$ ]] ; then
+              DOCKER_IMAGE="$(echo ${DOCKER_IMAGE} | sed 's/ironcore-images/ironcore-dev-1/')"
+            fi
+          done
+          echo "name=${DOCKER_IMAGE}" >> "$GITHUB_OUTPUT"
       - name: Output docker image identifiers
         id: images
         run: |
@@ -149,6 +166,7 @@ jobs:
     env: # Needed for custom commands to access these variables at runtime
       LONGTAG: ${{ needs.image.outputs.longtag }}
       DOCKER_IMAGE: ${{ inputs.image_name }}
+      ARCH: # this will get overwritten later, but is here so IDE doesn't complain
     strategy:
       matrix:
         runs_on: ${{ fromJson(inputs.docker_runs_on) }}
@@ -209,7 +227,7 @@ jobs:
         if: inputs.build_command == ''
         env:
           DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ env.ARCH }}
-        run: docker build --pull -t ${DOCKER_FULL_NAME} .
+        run: docker build --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }} --pull -t ${DOCKER_FULL_NAME} .
       - name: Build docker (Overridden)
         if: inputs.build_command != ''
         env:
@@ -304,8 +322,7 @@ jobs:
           gcloud auth configure-docker --quiet
       - name: Get canonical image name
         id: name
-        run: |
-          echo "canonical=$(echo ${{ matrix.image }} | sed 's/ .*//')" >> "$GITHUB_OUTPUT"
+        run: echo "canonical=$(echo ${{ matrix.image }} | sed 's/ .*//')" >> "$GITHUB_OUTPUT"
       - name: Pull images (Default)
         if: inputs.pull_images_command == ''
         run: |
@@ -344,11 +361,19 @@ jobs:
           tag: ${{ github.event.release.tag_name }}
           name: ${{ github.event.release.name }}
           omitBodyDuringUpdate: true
-      - name: Trigger deploy (workflow_dispatch)
+      - name: Trigger deploy (Default)
         # This happens automatically if we were triggered by a prerelease, because of the "publish release" step above.
-        if: github.event.inputs.deploy == 'true'
+        if: github.event.inputs.deploy == 'true' && inputs.trigger_deploy_inputs == ''
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: Deploy
           token: ${{ secrets.WORKFLOW_PAT }}
           inputs: '{ "newTag": "${{ needs.image.outputs.tags }}" }'
+      - name: Trigger deploy (Overridden)
+        # This happens automatically if we were triggered by a prerelease, because of the "publish release" step above.
+        if: github.event.inputs.deploy == 'true' && inputs.trigger_deploy_inputs != ''
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: Deploy
+          token: ${{ secrets.WORKFLOW_PAT }}
+          inputs: ${{ inputs.trigger_deploy_inputs }}
