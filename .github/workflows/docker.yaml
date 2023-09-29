@@ -240,7 +240,7 @@ jobs:
         if: inputs.build_command == ''
         env:
           DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ env.ARCH }}
-        run: docker build --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }} --pull -t ${DOCKER_FULL_NAME} .
+        run: docker build ${{ inputs.configure_git_ssh && '--ssh=default="${HOME}/.ssh/id_ed25519"' || '' }} --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }} --pull -t ${DOCKER_FULL_NAME} .
       - name: Build docker (Overridden)
         if: inputs.build_command != ''
         env:
