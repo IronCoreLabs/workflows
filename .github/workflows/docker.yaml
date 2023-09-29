@@ -99,6 +99,11 @@ on:
         type: string
         required: false
         default: ""
+      skip_deploy:
+        description: "`true` to skip the Trigger Deploy step."
+        type: boolean
+        required: false
+        default: false
 
 env:
   DOCKER_BUILDKIT: 1
@@ -398,7 +403,7 @@ jobs:
           omitBodyDuringUpdate: true
       - name: Trigger deploy (Default)
         # This happens automatically if we were triggered by a prerelease, because of the "publish release" step above.
-        if: github.event.inputs.deploy == 'true' && inputs.trigger_deploy_inputs == ''
+        if: github.event.inputs.deploy == 'true' && inputs.trigger_deploy_inputs == '' && !inputs.skip_deploy
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: Deploy
@@ -406,7 +411,7 @@ jobs:
           inputs: '{ "newTag": "${{ needs.image.outputs.tags }}" }'
       - name: Trigger deploy (Overridden)
         # This happens automatically if we were triggered by a prerelease, because of the "publish release" step above.
-        if: github.event.inputs.deploy == 'true' && inputs.trigger_deploy_inputs != ''
+        if: github.event.inputs.deploy == 'true' && inputs.trigger_deploy_inputs != '' && !inputs.skip_deploy
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: Deploy
