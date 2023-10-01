@@ -60,7 +60,7 @@ jobs:
       matrix:
         node_version: "${{ fromJSON(inputs.test_matrix_node_version) }}"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Decrypt ironhide files
         uses: IronCoreLabs/ironhide-actions/decrypt@v3
         if: ${{ inputs.files_to_decrypt != '' }}
