@@ -78,12 +78,17 @@ jobs:
     runs-on: ubuntu-22.04
     if: ${{ !needs.skip.outputs.skip }}
     steps:
-      - name: Checkout
+      - name: Checkout own repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.WORKFLOW_PAT }}
+      - name: Checkout workflows repo
         uses: actions/checkout@v4
         with:
           repository: IronCoreLabs/workflows
           ref: bump-version-workflow
           token: ${{ secrets.WORKFLOW_PAT }}
+          path: workflows
       - name: Configure git
         run: |
           git config --global user.email ops@ironcorelabs.com
@@ -98,12 +103,12 @@ jobs:
           while [ $TRY -lt $RETRIES ] ; do
             TRY=$(expr $TRY + 1)
             # Get the current version.
-            CURRENT=$(.github/bump-version.get.sh)
+            CURRENT=$(workflow/.github/bump-version.get.sh)
             # Calculate next release version, and next dev version. Output to $GITHUB_OUTPUT, which we then read.
-            .github/bump-version.bump.sh "${{ inputs.release_mode }}" "${CURRENT}" ${{ inputs.version }}
+            workflows/.github/bump-version.bump.sh "${{ inputs.release_mode }}" "${CURRENT}" ${{ inputs.version }}
             . $GITHUB_OUTPUT
             # Set the in-tree version to the release version.
-            .github/bump-version.set.sh "${release}"
+            workflows/.github/bump-version.set.sh "${release}"
             git diff --cached
             # GHA intermixes the stdout from git diff with stderr from "set -x", so we pause to let it settle.
             sleep 1
@@ -111,7 +116,7 @@ jobs:
             git tag "${release}"
 
             # Bump to the next development version.
-            .github/bump-version.set.sh "${bumped}"
+            workflows/.github/bump-version.set.sh "${bumped}"
             git diff --cached
             sleep 1
             git commit -m "Bump to next development version ${bumped} [skip ci]"
