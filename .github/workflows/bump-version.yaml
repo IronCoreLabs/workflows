@@ -23,7 +23,7 @@
 # The default mode is "release". To get "prerelease" mode, modify /env/MODE.
 
 # Details:
-# This workflow is triggered by merge to main, or by manual workflow_dispatch.
+# With our typical triggers, this workflow is triggered by merge to main, or by manual workflow_dispatch.
 # 1. Make a release version. Depending on whether we're in "release" or "prerelease" mode:
 #    - release: Remove the -prerelease info from the semver. (1.2.3-pre -> 1.2.3)
 #    - prerelease: Remove any non-numeric characters from the prerelease part of the semver. (1.2.3-pre.4 -> 1.2.3-4)
@@ -39,11 +39,6 @@
 name: Bump Version
 
 on:
-  # push:
-  #   branches:
-  #     # WARNING: Because this workflow pushes to main, we need more filtering in the job below to ensure we don't busy loop.
-  #     # The "[skip ci]" in the commit messages is important.
-  #     - main
   workflow_call:
     inputs:
       version:
@@ -51,9 +46,15 @@ on:
         type: string
         required: true
       release_mode:
+        description: Whether to increment the release number (1.2.3 -> 1.2.4-pre) or the prerelease number (1.2.3-4 -> 1.2.3-pre.5). Defaults to "release".
         type: string
         required: false
         default: release
+      release_prereleases:
+        description: Whether to make a GitHub release for each prerelease version. Defaults to `true`.
+        type: boolean
+        required: false
+        default: true
 
 jobs:
   # This job determines if we should run at all.
@@ -163,9 +164,19 @@ jobs:
           echo "body=latest_pr:${PR}" >> "$GITHUB_OUTPUT"
         working-directory: self
       - name: Create prerelease
+        # If the release isn't a prerelease version OR you want to make releases for prerelease versions
+        if: ${{ !contains(steps.release.outputs.release, '-') || inputs.release_prereleases }}
+        id: github-release
         uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.WORKFLOW_PAT }}
           prerelease: true
           tag: ${{ steps.release.outputs.release }}
           body: "${{ steps.release-body.outputs.body }}"
+      - name: Trigger Docker
+        if: steps.github-release.outcome == 'skipped'
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: Docker
+          inputs: '{ "ref": "${{ steps.release.outputs.release }}", "tags": "${{ steps.release.outputs.release }}" }'
+          token: ${{ secrets.WORKFLOW_PAT }}
