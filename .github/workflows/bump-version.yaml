@@ -103,7 +103,7 @@ jobs:
           while [ $TRY -lt $RETRIES ] ; do
             TRY=$(expr $TRY + 1)
             # Get the current version.
-            CURRENT=$(workflow/.github/bump-version.get.sh)
+            CURRENT=$(workflows/.github/bump-version.get.sh)
             # Calculate next release version, and next dev version. Output to $GITHUB_OUTPUT, which we then read.
             workflows/.github/bump-version.bump.sh "${{ inputs.release_mode }}" "${CURRENT}" ${{ inputs.version }}
             . $GITHUB_OUTPUT
