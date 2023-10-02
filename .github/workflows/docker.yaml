@@ -40,7 +40,7 @@ on:
         required: false
         default: '["buildjet-2vcpu-ubuntu-2204"]'
       other_jobs_runs_on:
-        description: Runner to use for `image`, `publish`, and `trigger-deploy` jobs within the workflow.
+        description: Runner to use for `image` and `publish` jobs within the workflow.
         type: string
         required: false
         default: "ubuntu-22.04"
