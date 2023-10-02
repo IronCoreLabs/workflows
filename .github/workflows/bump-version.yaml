@@ -39,22 +39,19 @@
 name: Bump Version
 
 on:
-  push:
-    branches:
-      # WARNING: Because this workflow pushes to main, we need more filtering in the job below to ensure we don't busy loop.
-      # The "[skip ci]" in the commit messages is important.
-      - main
-  workflow_dispatch:
+  # push:
+  #   branches:
+  #     # WARNING: Because this workflow pushes to main, we need more filtering in the job below to ensure we don't busy loop.
+  #     # The "[skip ci]" in the commit messages is important.
+  #     - main
+  workflow_call:
     inputs:
       version:
         description: New semver release version.
         type: string
         required: true
       release_mode:
-        type: choice
-        options:
-          - release
-          - prerelease
+        type: string
         required: false
         default: release
 
