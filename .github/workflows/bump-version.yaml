@@ -81,6 +81,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          repository: IronCoreLabs/workflows
           token: ${{ secrets.WORKFLOW_PAT }}
       - name: Configure git
         run: |
