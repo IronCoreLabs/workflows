@@ -52,7 +52,7 @@ jobs:
         echo "${HOME}/bin" >> ${GITHUB_PATH}
 
     - name: Check out software repo
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         ref: ${{ inputs.tag }}
         path: software
@@ -76,7 +76,7 @@ jobs:
 
     # Make a PR to the deployments repo.
     - name: Check out deployments
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: IronCoreLabs/deployments
         path: deployments
@@ -146,7 +146,7 @@ jobs:
 
     # Update clusters-nonprod to use the new branch we just created in deployments.
     - name: Check out clusters-nonprod
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: IronCoreLabs/clusters-nonprod
         path: clusters-nonprod
@@ -205,7 +205,7 @@ jobs:
 
     # Update the local dev clusters to use the new container.
     - name: Check out depot
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: IronCoreLabs/depot
         path: depot
