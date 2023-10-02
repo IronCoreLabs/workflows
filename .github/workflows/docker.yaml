@@ -65,7 +65,7 @@ on:
         required: false
         default: false
       docker_build_target:
-        description: "Extra target flag to pass to the `docker build` command"
+        description: "Extra target flag to pass to the `docker build` command. Note that this should include the `--target` as well."
         type: string
         required: false
         default: ""
