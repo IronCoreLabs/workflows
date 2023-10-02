@@ -64,6 +64,11 @@ on:
         type: boolean
         required: false
         default: false
+      docker_build_target:
+        description: "Extra target flag to pass to the `docker build` command"
+        type: string
+        required: false
+        default: ""
 
 env:
   DOCKER_BUILDKIT: 1
@@ -223,7 +228,12 @@ jobs:
       - name: Build docker
         env:
           DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ env.ARCH }}
-        run: docker build ${{ inputs.configure_git_ssh && '--ssh=default="${HOME}/.ssh/id_ed25519"' || '' }} --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }} --pull -t ${DOCKER_FULL_NAME} .
+        run: |
+          docker build \
+          --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }} \
+          ${{ inputs.configure_git_ssh && '--ssh=default="${HOME}/.ssh/id_ed25519"' || '' }} \
+          ${{ inputs.docker_build_target }} \
+          --pull -t ${DOCKER_FULL_NAME} .
       # If the above command didn't produce the right image, the scan below will fail. That's what we want.
       - name: Scan docker image
         run: |
