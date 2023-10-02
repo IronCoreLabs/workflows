@@ -1,0 +1,164 @@
+# This workflow does version management, bumping the patch version on the main branch after a PR is merged.
+
+# Requirements:
+# - It needs a GitHub secret named WORKFLOW_PAT with a personal access token that has workflow permissions. The user that owns the
+#   PAT must be allowed to push to the main branch of the repo. That usually means the user has to be a repo admin, and admins must
+#   be excepted from branch protection rules on main.
+# - Another workflow must consume the prereleases created by this one. That workflow should build and publish the release.
+
+# Terminology:
+# - In semver, everything before the optional "-" is the version, and everything after it is the prerelease version.
+# - In this workflow, we can operate on the release part of the semver, or on the prerelease part of the semver.
+# - In GitHub, we create a "release" object that can optionally have the "prerelease" flag set to true. The "docker.yaml" workflow
+#   triggers on release events.
+# I'm sorry the terminology is bad.
+
+# Customize:
+# It can work in either release mode or prerelease mode. That controls whether it increments the release version or the prerelease
+# version. Here's an example of how the two modes transform the current version into the release version and bumped version:
+# | mode    | release     | prerelease  |
+# | current | 1.2.3-pre   | 1.2.3-pre.4 |
+# | release | 1.2.3       | 1.2.3-rc.4  |
+# | bumped  | 1.2.4-pre   | 1.2.3-pre.5 |
+# The default mode is "release". To get "prerelease" mode, modify /env/MODE.
+
+# Details:
+# This workflow is triggered by merge to main, or by manual workflow_dispatch.
+# 1. Make a release version. Depending on whether we're in "release" or "prerelease" mode:
+#    - release: Remove the -prerelease info from the semver. (1.2.3-pre -> 1.2.3)
+#    - prerelease: Remove any non-numeric characters from the prerelease part of the semver. (1.2.3-pre.4 -> 1.2.3-4)
+# 2. Commit, push, tag, and create a GitHub prerelease.
+# 3. Bump the version, and add `-pre` or `.pre` as a pre-release identifier.
+#    - release: 1.2.3 -> 1.2.4-pre
+#    - prerelease: 1.2.3-4 -> 1.2.3-pre.5
+# 4. Commit and push.
+# It parses the version info from files in the repo like Cargo.toml, package.json, or version.sbt. It updates those files when it
+# bumps the version.
+# Sanity checks ensure it's a valid semver, and it's not 0.0.0.
+
+name: Bump Version
+
+on:
+  push:
+    branches:
+      # WARNING: Because this workflow pushes to main, we need more filtering in the job below to ensure we don't busy loop.
+      # The "[skip ci]" in the commit messages is important.
+      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: New semver release version.
+        type: string
+        required: true
+      release_mode:
+        type: choice
+        options:
+          - release
+          - prerelease
+        required: false
+        default: release
+
+jobs:
+  # This job determines if we should run at all.
+  skip:
+    runs-on: ubuntu-22.04
+    outputs:
+      skip: ${{ steps.skip.outputs.skip }}
+    steps:
+      - name: Maybe skip
+        id: skip
+        run: |
+          # If it's a push to main, and any of the commits are from Dependabot, we should skip.
+          if [ ${{ github.event_name }} = push ] ; then
+            if [ $(jq -r < ${{ github.event_path }} '.commits | map(.author.name == "dependabot[bot]") | any') = true ] ; then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+  bump:
+    needs:
+      - skip
+    runs-on: ubuntu-22.04
+    if: ${{ !needs.skip.outputs.skip }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.WORKFLOW_PAT }}
+      - name: Configure git
+        run: |
+          git config --global user.email ops@ironcorelabs.com
+          git config --global user.name "Leeroy Travis"
+      - name: Release
+        id: release
+        # Because the last step of this can race against other runs of this workflow, we need to retry in a loop.
+        run: |
+          set -x
+          RETRIES=10
+          TRY=0
+          while [ $TRY -lt $RETRIES ] ; do
+            TRY=$(expr $TRY + 1)
+            # Get the current version.
+            CURRENT=$(.github/bump-version.get.sh)
+            # Calculate next release version, and next dev version. Output to $GITHUB_OUTPUT, which we then read.
+            .github/bump-version.bump.sh "${{ inputs.release_mode }}" "${CURRENT}" ${{ inputs.version }}
+            . $GITHUB_OUTPUT
+            # Set the in-tree version to the release version.
+            .github/bump-version.set.sh "${release}"
+            git diff --cached
+            # GHA intermixes the stdout from git diff with stderr from "set -x", so we pause to let it settle.
+            sleep 1
+            git commit -m "Set release version ${release} [skip ci]"
+            git tag "${release}"
+
+            # Bump to the next development version.
+            .github/bump-version.set.sh "${bumped}"
+            git diff --cached
+            sleep 1
+            git commit -m "Bump to next development version ${bumped} [skip ci]"
+
+            # If we push the release commit and its tag in one step, we hit strange race conditions where one client succeeds
+            # pushing the tag, and another client succeeds pushing the commit. Instead, we push the commit first and then the tag.
+            # That seems to cause the loser of the race to fail early.
+            if git push origin "${{ github.ref }}" && git push origin "${release}" ; then
+              # Just exit.
+              exit 0
+            fi
+
+            # If the "git push" failed, then let's forget our last two commits, re-pull the latest changes, and try again.
+            git reset --hard HEAD~2
+            git tag -d "${release}"
+            git pull origin "${{ github.ref }}"
+            # Wait a little bit to let competing workflows finish their business.
+            sleep 10
+          done
+          # Fallthrough for repeated failure case.
+          echo "Failed to push bumped versions; tried $TRY times."
+          exit 1
+      - name: Generate release text
+        id: release-body
+        run: |
+          set -x
+          # Get the most recent commit. Hopefully it was a PR merge.
+          COMMIT=$(jq -r '.after' ${{ github.event_path }})
+          if [ "${COMMIT}" = "null" ] || [ -z "${COMMIT}" ] ; then
+            exit 0
+          fi
+          # Get the most recent PRs; hopefully ours is one of them.
+          curl -fSs -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.WORKFLOW_PAT }}" \
+            https://api.github.com/repos/${{ github.repository }}/pulls?state=all\&base=${{ github.ref }}\&sort=updated\&direction=desc > /tmp/prs.json
+          # Find a PR that resulted in our commit.
+          PR=$(jq -r ".[] | select(.merge_commit_sha == \"${COMMIT}\") | .number" /tmp/prs.json)
+          if [ "${PR}" = "null" ] || [ -z "${PR}" ] ; then
+            exit 0
+          fi
+          # Build the string we'll use as the description of the release.
+          echo "body=latest_pr:${PR}" >> "$GITHUB_OUTPUT"
+      - name: Create prerelease
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.WORKFLOW_PAT }}
+          prerelease: true
+          tag: ${{ steps.release.outputs.release }}
+          body: "${{ steps.release-body.outputs.body }}"
