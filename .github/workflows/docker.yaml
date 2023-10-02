@@ -16,46 +16,6 @@ on:
         description: Space-separated list of image base names
         type: string
         required: true
-      build_command:
-        description: Command to run to build docker image. `${DOCKER_FULL_NAME}` should be used as the tag name.
-        type: string
-        required: false
-        default: ""
-      scan_command:
-        description: Commands to run to scan the Docker container
-        type: string
-        required: false
-        default: ""
-      push_command:
-        description: Command to run to push docker image.
-        type: string
-        required: false
-        default: ""
-      container_hash_command:
-        description: Command to run to calculate image hash.
-        type: string
-        required: false
-        default: ""
-      update_buildlog_command:
-        description: Command to run to update buildlog.
-        type: string
-        required: false
-        default: ""
-      pull_images_command:
-        description: Command to run to pull images.
-        type: string
-        required: false
-        default: ""
-      create_and_push_manifest_command:
-        description: Command to run to create and push manifest.
-        type: string
-        required: false
-        default: ""
-      trigger_deploy_inputs:
-        description: Inputs to the Trigger Deploy step
-        type: string
-        required: false
-        default: ""
       buildlog_repo:
         type: string
         required: false
@@ -99,8 +59,8 @@ on:
         type: string
         required: false
         default: ""
-      skip_deploy:
-        description: "`true` to skip the Trigger Deploy step."
+      skip_update_release:
+        description: "`true` to skip marking the triggering release as `prerelease: false`."
         type: boolean
         required: false
         default: false
@@ -118,6 +78,9 @@ jobs:
       images: ${{ steps.images.outputs.images }}
       tags: ${{ steps.tag.outputs.tags }}
       longtag: ${{ steps.tag.outputs.longest }}
+    strategy:
+      matrix:
+        foo: ["", "blah"]
     steps:
       - name: Set docker image tags
         id: tag
@@ -158,7 +121,6 @@ jobs:
       - name: Set docker image names
         id: name
         run: |
-          # TODO: should this be conditional? it was a patch before, but would we ever not want it to be true?
           for TAG in ${{ steps.tag.outputs.tags }} ; do
             if ! [[ ${TAG} =~ ^[0-9.]*$ ]] ; then
               DOCKER_IMAGE="$(echo ${DOCKER_IMAGE} | sed 's/ironcore-images/ironcore-dev-1/')"
@@ -195,6 +157,10 @@ jobs:
         image: "${{ fromJson(needs.image.outputs.images) }}"
     runs-on: ${{ matrix.runs_on }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          # Either the workflow_dispatch ref, or the prerelease tag, whichever is set.
+          ref: ${{ github.event.inputs.ref }}${{ github.event.release.tag_name }}
       - name: Log in to docker
         # This avoids rate limits. https://buildjet.com/for-github-actions/docs/faq#docker-rate-limiting
         uses: docker/login-action@v2
@@ -202,7 +168,6 @@ jobs:
           username: ironcoreci
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Get canonical arch name
-        # id: arch
         run: |
           ARCH="${{ runner.arch }}"
           case "${ARCH}" in
@@ -226,10 +191,6 @@ jobs:
           echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
-      - uses: actions/checkout@v3
-        with:
-          # Either the workflow_dispatch ref, or the prerelease tag, whichever is set.
-          ref: ${{ github.event.inputs.ref }}${{ github.event.release.tag_name }}
       - name: Install clamav
         if: ${{ ! contains(matrix.runs_on, 'self-hosted') }}
         run: |
@@ -259,58 +220,31 @@ jobs:
         uses: olafurpg/setup-scala@v13
         with:
           java-version: ${{ inputs.setup_scala_java_version }}
-      - name: Build docker (Default)
-        if: inputs.build_command == ''
+      - name: Build docker
         env:
           DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ env.ARCH }}
         run: docker build ${{ inputs.configure_git_ssh && '--ssh=default="${HOME}/.ssh/id_ed25519"' || '' }} --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }} --pull -t ${DOCKER_FULL_NAME} .
-      - name: Build docker (Overridden)
-        if: inputs.build_command != ''
-        env:
-          DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ env.ARCH }}
-        run: ${{ inputs.build_command }}
-      - name: Scan docker image (Default)
-        if: inputs.scan_command == ''
+      # If the above command didn't produce the right image, the scan below will fail. That's what we want.
+      - name: Scan docker image
         run: |
           docker save -o /tmp/docker.tar "${{ steps.name.outputs.canonical }}-${ARCH}"
           clamscan /tmp/docker.tar
-      # If the above command didn't produce the right image, the scan below will fail. That's what we want.
-      - name: Scan docker image (Overridden)
-        if: inputs.scan_command != ''
-        run: ${{ inputs.scan_command }}
-      - name: Push it! (Default)
-        if: inputs.push_command == ''
+      - name: Push it!
         run: docker push "${{ steps.name.outputs.canonical }}-${ARCH}"
-      - name: Push it! (Overridden)
-        if: inputs.push_command != ''
-        run: ${{ inputs.push_command }}
-      - name: Container hash (Default)
-        if: inputs.container_hash_command == ''
-        id: container-hash-default
+      - name: Container hash
+        id: container-hash
         run: |
           # Now that we've pushed the image, we can retrieve its hash and sanity check it.
           IMG="${{ steps.name.outputs.canonical }}-${ARCH}"
           HASH=$(docker inspect --format='{{ index .RepoDigests 0 }}' "${IMG}" | sed 's/.*@sha256://')
           echo "hash=${HASH}" >> "$GITHUB_OUTPUT"
           [[ "${HASH}" =~ ^[0-9a-f]+$ ]]
-      - name: Container hash (Overridden)
-        if: inputs.container_hash_command != ''
-        id: container-hash-overridden
-        run: ${{ inputs.container_hash_command }}
-      - name: Output container hash
-        id: container-hash
-        run: |
-          if [ -n "${{ steps.container-hash-default.outputs.hash }}" ] ; then
-            echo "hash=${{ steps.container-hash-default.outputs.hash }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "hash=${{ steps.container-hash-overridden.outputs.hash }}" >> "$GITHUB_OUTPUT"
-          fi
       - name: Check out buildlog repo
         # The head_ref or source branch of the pull request in a workflow run. This property is only available when the event that triggers a workflow run is either pull_request or pull_request_target.
         # So this conditional checks that the trigger was _not_ a pull_request.
         # The "contains()" conditional checks that this is a release like 1.2.3, not a prerelease like 1.2.3-rc.1.
         if: ${{ github.head_ref == '' && inputs.buildlog_repo != '' && !contains(needs.image.outputs.longtag, '-') }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: ${{ inputs.buildlog_repo }}
           token: ${{ secrets.WORKFLOW_PAT }}
@@ -321,14 +255,11 @@ jobs:
         run: |
           git config --global user.email "ops@ironcorelabs.com"
           git config --global user.name "${{ github.repository }} CI"
-      - name: Update buildlog (Default)
-        if: ${{ inputs.update_buildlog_command == '' && github.head_ref == '' && inputs.buildlog_repo != '' && !contains(needs.image.outputs.longtag, '-')}}
+      - name: Update buildlog
+        if: ${{ github.head_ref == '' && inputs.buildlog_repo != '' && !contains(needs.image.outputs.longtag, '-')}}
         run: .github/docker.buildlog.sh "$(basename "${{ inputs.buildlog_filename }}")" "${{ needs.image.outputs.longtag }}-${ARCH}" "${{ steps.container-hash.outputs.hash }}"
-      - name: Update buildlog (Overridden)
-        if: ${{ inputs.update_buildlog_command != '' && github.head_ref == '' && inputs.buildlog_repo != '' && !contains(needs.image.outputs.longtag, '-') }}
-        run: ${{ inputs.update_buildlog_command }}
 
-  # This job pushes the image manifest, AKA multi-arch image.
+  # This job pushes the image manifest (multi-arch image) and optionally creates a GitHub release.
   publish:
     needs: [docker, image]
     runs-on: ${{ inputs.other_jobs_runs_on }}
@@ -343,7 +274,7 @@ jobs:
       LONGTAG: ${{ needs.image.outputs.longtag }}
       DOCKER_IMAGE: ${{ inputs.image_name }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           # Either the workflow_dispatch ref, or the prerelease tag, whichever is set.
           ref: ${{ github.event.inputs.ref }}${{ github.event.release.tag_name }}
@@ -360,16 +291,11 @@ jobs:
         id: name
         run: echo "canonical=$(echo ${{ matrix.image }} | sed 's/ .*//')" >> "$GITHUB_OUTPUT"
       - name: Pull images (Default)
-        if: inputs.pull_images_command == ''
         run: |
           for ARCH in ${{ inputs.archs }} ; do
             docker pull "${{ steps.name.outputs.canonical }}-${ARCH}"
           done
-      - name: Pull images (Overridden)
-        if: inputs.pull_images_command != ''
-        run: ${{ inputs.pull_images_command }}
       - name: Create and push manifest (Default)
-        if: inputs.create_and_push_manifest_command == ''
         run: |
           for I in ${{ matrix.image }} ; do
             for ARCH in ${{ inputs.archs }} ; do
@@ -378,21 +304,9 @@ jobs:
             xargs docker manifest create "${I}"
             docker manifest push "${I}"
           done
-      - name: Create and push manifest (Overridden)
-        if: inputs.create_and_push_manifest_command != ''
-        run: ${{ inputs.create_and_push_manifest_command }}
-
-  #  Trigger deployment.
-  trigger-deploy:
-    needs: [publish, image]
-    runs-on: ${{ inputs.other_jobs_runs_on }}
-    env:
-      IMAGE_NAME: ${{ needs.image.outputs.name }} # TODO: TSP expects this but it doesn't exist
-      IMAGE_TAGS: ${{ needs.image.outputs.tags }}
-      LAST_PR: ${{ needs.image.outputs.last_pr }} # TODO: TSP expects this but it doesn't exist
-    steps:
-      - name: Publish release
-        if: github.event.release != null
+      # This triggers the Deploy workflow's `release: released`
+      - name: "Mark GitHub release as not prerelease"
+        if: github.event.release != null && !inputs.skip_update_release
         uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.WORKFLOW_PAT }}
@@ -401,19 +315,3 @@ jobs:
           tag: ${{ github.event.release.tag_name }}
           name: ${{ github.event.release.name }}
           omitBodyDuringUpdate: true
-      - name: Trigger deploy (Default)
-        # This happens automatically if we were triggered by a prerelease, because of the "publish release" step above.
-        if: github.event.inputs.deploy == 'true' && inputs.trigger_deploy_inputs == '' && !inputs.skip_deploy
-        uses: benc-uk/workflow-dispatch@v1
-        with:
-          workflow: Deploy
-          token: ${{ secrets.WORKFLOW_PAT }}
-          inputs: '{ "newTag": "${{ needs.image.outputs.tags }}" }'
-      - name: Trigger deploy (Overridden)
-        # This happens automatically if we were triggered by a prerelease, because of the "publish release" step above.
-        if: github.event.inputs.deploy == 'true' && inputs.trigger_deploy_inputs != '' && !inputs.skip_deploy
-        uses: benc-uk/workflow-dispatch@v1
-        with:
-          workflow: Deploy
-          token: ${{ secrets.WORKFLOW_PAT }}
-          inputs: ${{ inputs.trigger_deploy_inputs }}
