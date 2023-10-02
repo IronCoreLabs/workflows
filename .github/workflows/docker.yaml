@@ -83,9 +83,6 @@ jobs:
       images: ${{ steps.images.outputs.images }}
       tags: ${{ steps.tag.outputs.tags }}
       longtag: ${{ steps.tag.outputs.longest }}
-    strategy:
-      matrix:
-        foo: ["", "blah"]
     steps:
       - name: Set docker image tags
         id: tag
