@@ -82,6 +82,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: IronCoreLabs/workflows
+          ref: bump-version-workflow
           token: ${{ secrets.WORKFLOW_PAT }}
       - name: Configure git
         run: |
