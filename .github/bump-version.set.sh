@@ -127,9 +127,9 @@ for FILE in ${VERSFILES} ; do
     fi
 done
 
-# If there are Cargo.lock files, we need to run "cargo fetch" after all the Cargo.toml files have been edited.
+# If there are Cargo.lock files, we need to run "cargo generate-lockfile" after all the Cargo.toml files have been edited.
 for DIR in ${CARGO_LOCKS} ; do
-    ( cd "${DIR}" && cargo fetch )
+    ( cd "${DIR}" && cargo generate-lockfile --offline )
     git add "${DIR}/Cargo.lock"
 done
 
