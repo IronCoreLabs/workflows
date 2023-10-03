@@ -129,7 +129,7 @@ done
 
 # If there are Cargo.lock files, we need to run "cargo update --workspace" after all the Cargo.toml files have been edited.
 for DIR in ${CARGO_LOCKS} ; do
-    ( cd "${DIR}" && cargo update --workspace --offline)
+    ( cd "${DIR}" && cargo update --workspace)
     git add "${DIR}/Cargo.lock"
 done
 
