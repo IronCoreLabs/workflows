@@ -56,7 +56,7 @@ on:
         required: false
         default: true
       workflows_ref:
-        description: Set to github.action_ref variable.
+        description: Ref for the `workflows` repo. This should match the ref from the `uses` (after the @ symbol).
         type: string
         required: true
 
