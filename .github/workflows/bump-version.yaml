@@ -55,6 +55,10 @@ on:
         type: boolean
         required: false
         default: true
+      workflows_ref:
+        description: Set to github.action_ref variable.
+        type: string
+        required: true
 
 jobs:
   # This job determines if we should run at all.
@@ -88,7 +92,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: IronCoreLabs/workflows
-          ref: ${{ github.workflow_ref }}
+          ref: ${{ inputs.workflows_ref }}
           token: ${{ secrets.WORKFLOW_PAT }}
           path: workflows
       - name: Configure git
