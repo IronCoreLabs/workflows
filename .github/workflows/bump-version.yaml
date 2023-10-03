@@ -55,6 +55,11 @@ on:
         type: boolean
         required: false
         default: true
+      configure_git_ssh:
+        description: Whether to configure git ssh with LEEROY_PRIVATE_SSH_KEY repository secret.
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   # This job determines if we should run at all.
@@ -95,6 +100,14 @@ jobs:
         run: |
           git config --global user.email ops@ironcorelabs.com
           git config --global user.name "Leeroy Travis"
+      - name: Configure git ssh access
+        if: inputs.configure_git_ssh
+        run: |
+          mkdir -p "${HOME}/.ssh"
+          chmod 700 "${HOME}/.ssh"
+          echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
+          chmod 600 "${HOME}/.ssh/id_ed25519"
+          ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - name: Release
         id: release
         # Because the last step of this can race against other runs of this workflow, we need to retry in a loop.
