@@ -16,6 +16,11 @@ on:
         description: Space-separated list of image base names
         type: string
         required: true
+      build_command:
+        description: Command to run to build docker image. `${DOCKER_FULL_NAME}` should be used as the tag name.
+        type: string
+        required: false
+        default: ""
       buildlog_repo:
         type: string
         required: false
@@ -222,7 +227,8 @@ jobs:
         uses: olafurpg/setup-scala@v13
         with:
           java-version: ${{ inputs.setup_scala_java_version }}
-      - name: Build docker
+      - name: Build docker (Default)
+        if: inputs.build_command == ''
         env:
           DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ env.ARCH }}
         run: |
@@ -231,6 +237,11 @@ jobs:
           ${{ inputs.configure_git_ssh && '--ssh=default="${HOME}/.ssh/id_ed25519"' || '' }} \
           ${{ inputs.docker_build_target }} \
           --pull -t ${DOCKER_FULL_NAME} .
+      - name: Build docker (Overridden)
+        if: inputs.build_command != ''
+        env:
+          DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ env.ARCH }}
+        run: ${{ inputs.build_command }}
       # If the above command didn't produce the right image, the scan below will fail. That's what we want.
       - name: Scan docker image
         run: |
