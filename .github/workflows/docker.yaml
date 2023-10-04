@@ -64,7 +64,7 @@ on:
         required: false
         default: ""
       workflow_repo_ref_override:
-        description: Ref for `workflows` repo to check out if `docker.buildlog.sh` is needed. If unset, `main` will be checked out.
+        description: Ref for `workflows` repo to check out if `docker.buildlog.sh` is needed. If unset, tag `docker-v1` will be checked out.
         type: string
         required: false
         default: ""
@@ -277,7 +277,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: IronCoreLabs/workflows
-          ref: ${{ inputs.workflow_repo_ref_override }} # If empty, `main` will be checked out
+          ref: ${{ inputs.workflow_repo_ref_override != '' && inputs.workflow_repo_ref_override || 'docker-v1'}}
           token: ${{ secrets.WORKFLOW_PAT }}
           fetch-depth: 2
           path: .github/tmp_workflows_dir
