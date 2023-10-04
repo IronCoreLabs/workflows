@@ -154,7 +154,8 @@ jobs:
             esac
             echo "$RUNS_ON"
           done | jq -cR '[., inputs]' | tee runners
-          echo "runners=$(cat runners)"
+          echo "Runners: '$(cat runners)'"
+          echo "runners=$(cat runners)" >> "$GITHUB_OUTPUT"
 
   docker:
     needs: image
