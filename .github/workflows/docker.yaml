@@ -119,7 +119,7 @@ jobs:
       - name: Set docker image names
         id: name
         run: |
-          DOCKER_IMAGE = "${{ inputs.image_name }}"
+          DOCKER_IMAGE="${{ inputs.image_name }}"
           # If any tags look like prereleases, then we'll push our final image to our internal registry, not the public one.
           for TAG in ${{ steps.tag.outputs.tags }} ; do
             if ! [[ ${TAG} =~ ^[0-9.]*$ ]] ; then
