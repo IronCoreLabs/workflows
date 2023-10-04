@@ -110,11 +110,12 @@ jobs:
             fi
           done
           echo "longest=${LONGESTTAG}" >> "$GITHUB_OUTPUT"
+          echo "Tags env var: ${TAGS}"
           # Tags is a space-separated list of tags. Sort them from longest to shortest.
           for T in ${TAGS} ; do
             echo "$T"
           done | awk '{ print length, $0 }' | sort -nr | awk '{ print $2 }' | tee tags
-          echo "Tags: $(cat tags)"
+          echo "Tags file: $(cat tags)"
           echo "tags=$(cat tags)" >> "$GITHUB_OUTPUT"
       - name: Set docker image names
         id: name
