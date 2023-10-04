@@ -3,9 +3,8 @@
 # - Pushes the container to a registry.
 # - If triggered by a prerelease, this workflow publishes the release when it's done. (This triggers the deploy workflow.)
 # - If triggered by workflow_dispatch:
-#   - Takes an optional git ref for sources to build from.
-#   - Takes an optional image tag name.
-#   - Optionally triggers deploy when done.
+#   - Takes a git ref for sources to build from.
+#   - Takes an image tag name.
 
 name: Docker
 
