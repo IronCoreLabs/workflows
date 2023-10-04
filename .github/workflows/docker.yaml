@@ -318,8 +318,8 @@ jobs:
           for ARCH in ${{ inputs.archs }} ; do
             echo "${{ steps.name.outputs.canonical }}-${ARCH}"
           done | \
-          xargs docker manifest create "${I}"
-          docker manifest push "${I}"
+          xargs docker manifest create "${{ needs.image.outputs.images }}"
+          docker manifest push "${{ needs.image.outputs.images }}"
       # This triggers the Deploy workflow's `release: released`
       - name: Mark GitHub release as not prerelease
         if: github.event.release != null
