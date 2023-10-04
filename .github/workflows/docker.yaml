@@ -13,7 +13,7 @@ on:
   workflow_call:
     inputs:
       image_name:
-        description: Space-separated list of image base names
+        description: Image base name, without tag.
         type: string
         required: true
       build_command:
@@ -142,15 +142,11 @@ jobs:
       - name: Output docker image identifiers
         id: images
         run: |
-          # DOCKER_IMAGE is a space-separated list of image base names. Make a cross product with tags.
-          for I in ${{ steps.name.outputs.name }} ; do
-            for T in ${{ steps.tag.outputs.tags }} ; do
-              echo -n "${I}:${T} "
-            done
-            echo ""
+          for T in ${{ steps.tag.outputs.tags }} ; do
+            echo -n "${{ steps.name.outputs.name }}:${T} "
           done | \
-          # Eat the trailing space on each line, then convert to a JSON array.
-          sed 's/ $//' | jq -cR '[., inputs]' | tee images
+          # Eat the trailing space.
+          sed 's/ $//' | tee images
           echo "Docker tags: '${{ steps.tag.outputs.tags }}'"
           echo "All images: '$(cat images)'"
           echo "images=$(cat images)" >> "$GITHUB_OUTPUT"
@@ -160,9 +156,6 @@ jobs:
     strategy:
       matrix:
         runs_on: ${{ fromJson(inputs.docker_runs_on) }}
-        # Each entry in image is a space separated list of full image names with tags. We'll append "-$ARCH" to each one. The first
-        # in each list is expected to be the most canonical.
-        image: "${{ fromJson(needs.image.outputs.images) }}"
     runs-on: ${{ matrix.runs_on }}
     steps:
       - uses: actions/checkout@v4
@@ -220,7 +213,7 @@ jobs:
           gcloud auth configure-docker --quiet
       - name: Get canonical image name
         id: name
-        run: echo "canonical=$(echo ${{ matrix.image }} | sed 's/ .*//')" >> "$GITHUB_OUTPUT"
+        run: echo "canonical=$(echo ${{ needs.image.outputs.images }} | sed 's/ .*//')" >> "$GITHUB_OUTPUT"
       - name: Extra commands
         if: inputs.extra_commands != ''
         run: ${{ inputs.extra_commands }}
@@ -290,11 +283,6 @@ jobs:
   publish:
     needs: [docker, image]
     runs-on: ${{ inputs.other_jobs_runs_on }}
-    strategy:
-      matrix:
-        # Each entry in image is a space separated list of full image names with tags. We'll append "-$ARCH" to each one. The first
-        # in each list is expected to be the most canonical.
-        image: "${{ fromJSON(needs.image.outputs.images) }}"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -311,7 +299,7 @@ jobs:
           gcloud auth configure-docker --quiet
       - name: Get canonical image name
         id: name
-        run: echo "canonical=$(echo ${{ matrix.image }} | sed 's/ .*//')" >> "$GITHUB_OUTPUT"
+        run: echo "canonical=$(echo ${{ needs.image.outputs.images }} | sed 's/ .*//')" >> "$GITHUB_OUTPUT"
       - name: Pull images
         run: |
           for ARCH in ${{ inputs.archs }} ; do
@@ -319,13 +307,11 @@ jobs:
           done
       - name: Create and push manifest
         run: |
-          for I in ${{ matrix.image }} ; do
-            for ARCH in ${{ inputs.archs }} ; do
-              echo "${{ steps.name.outputs.canonical }}-${ARCH}"
-            done | \
-            xargs docker manifest create "${I}"
-            docker manifest push "${I}"
-          done
+          for ARCH in ${{ inputs.archs }} ; do
+            echo "${{ steps.name.outputs.canonical }}-${ARCH}"
+          done | \
+          xargs docker manifest create "${I}"
+          docker manifest push "${I}"
       # This triggers the Deploy workflow's `release: released`
       - name: "Mark GitHub release as not prerelease"
         if: github.event.release != null && !inputs.skip_update_release
