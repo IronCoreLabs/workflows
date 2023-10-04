@@ -320,11 +320,4 @@ jobs:
       # This triggers the Deploy workflow's `release: released`
       - name: Mark GitHub release as not prerelease
         if: github.event.release != null
-        uses: ncipollo/release-action@v1
-        with:
-          token: ${{ secrets.WORKFLOW_PAT }}
-          prerelease: false
-          allowUpdates: true
-          tag: ${{ github.event.release.tag_name }}
-          name: ${{ github.event.release.name }}
-          omitBodyDuringUpdate: true
+        run: gh release edit --tag "${{ github.event.release.tag_name }}" --prerelease=false "${{ github.event.release.name }}"
