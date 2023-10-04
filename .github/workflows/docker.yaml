@@ -286,7 +286,7 @@ jobs:
         run: |
           git config --global user.email "ops@ironcorelabs.com"
           git config --global user.name "${{ github.repository }} CI"
-          .github/tmp_workflows_dir/.github/docker.buildlog.sh "$(basename "${{ inputs.buildlog_filename }}")" "${{ needs.image.outputs.longtag }}-${ARCH}" "${{ steps.container-hash.outputs.hash }}"
+          .github/tmp_workflows_dir/.github/docker.buildlog.sh "$(basename "${{ inputs.buildlog_filename }}")" "${{ needs.image.outputs.longtag }}-${{ steps.arch.outputs.arch }}" "${{ steps.container-hash.outputs.hash }}"
 
   # This job pushes the image manifest (multi-arch image) and optionally creates a GitHub release.
   publish:
