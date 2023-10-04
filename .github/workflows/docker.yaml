@@ -116,8 +116,8 @@ jobs:
             echo "$T"
           done | awk '{ print length, $0 }' | sort -nr | awk '{ print $2 }' | tee tags
           TAGS="$(cat tags)"
-          echo "Tags: ${TAGS}"
-          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+          echo Tags: ${TAGS}
+          echo tags=${TAGS} >> "$GITHUB_OUTPUT"
       - name: Set docker image names
         id: name
         run: |
