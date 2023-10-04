@@ -39,11 +39,6 @@ on:
         type: string
         required: false
         default: amd64
-      docker_runs_on:
-        description: JSON list of runners to use for `docker` job within the workflow.
-        type: string
-        required: false
-        default: '["buildjet-2vcpu-ubuntu-2204"]'
       other_jobs_runs_on:
         description: Runner to use for `image` and `publish` jobs within the workflow.
         type: string
@@ -88,6 +83,7 @@ jobs:
       images: ${{ steps.images.outputs.images }}
       tags: ${{ steps.tag.outputs.tags }}
       longtag: ${{ steps.tag.outputs.longest }}
+      runners: ${{ steps.archs.outputs.runners }}
     steps:
       - name: Set docker image tags
         id: tag
@@ -147,6 +143,24 @@ jobs:
           echo "Docker tags: '${{ steps.tag.outputs.tags }}'"
           echo "All images: '$(cat images)'"
           echo "images=$(cat images)" >> "$GITHUB_OUTPUT"
+      - name: Output arch build matrix
+        id: archs
+        run: |
+          for A in ${{ inputs.archs }} ; do
+            case $A in
+            amd64)
+              RUNS_ON=buildjet-2vcpu-ubuntu-2204
+              ;;
+            arm64)
+              RUNS_ON=buildjet-4vcpu-ubuntu-2204-arm
+              ;;
+            *)
+              echo "Unknown arch '$A'"
+              exit 1
+            esac
+            echo "$RUNS_ON"
+          done | jq -cR '[., inputs]' | tee runners
+          echo "runners=$(cat runners)"
 
   docker:
     needs: image
@@ -155,7 +169,7 @@ jobs:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        runs_on: ${{ fromJson(inputs.docker_runs_on) }}
+        runs_on: ${{ fromJson(needs.image.outputs.runners) }}
     steps:
       - uses: actions/checkout@v4
         with:
