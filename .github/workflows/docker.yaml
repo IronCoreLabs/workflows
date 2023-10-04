@@ -48,7 +48,7 @@ on:
         description: Runner to use for `image` and `publish` jobs within the workflow.
         type: string
         required: false
-        default: "ubuntu-22.04"
+        default: "buildjet-2vcpu-ubuntu-2204"
       configure_git_ssh:
         description: Whether to configure git ssh with LEEROY_PRIVATE_SSH_KEY repository secret.
         type: boolean
@@ -64,11 +64,11 @@ on:
         type: string
         required: false
         default: ""
-      skip_update_release:
-        description: "`true` to skip marking the triggering release as `prerelease: false`."
+      update_github_release:
+        description: "`true` to mark the triggering release as `prerelease: false` when done."
         type: boolean
         required: false
-        default: false
+        default: true
       docker_build_target:
         description: "Extra target flag to pass to the `docker build` command. Note that this should include the `--target` as well."
         type: string
@@ -80,15 +80,10 @@ on:
         required: false
         default: ""
 
-env:
-  DOCKER_BUILDKIT: 1
-
 jobs:
   image:
     if: github.actor != 'dependabot[bot]'
     runs-on: ${{ inputs.other_jobs_runs_on }}
-    env:
-      DOCKER_IMAGE: ${{ inputs.image_name }} # This is needed by custom commands at runtime.
     outputs:
       images: ${{ steps.images.outputs.images }}
       tags: ${{ steps.tag.outputs.tags }}
@@ -129,10 +124,12 @@ jobs:
           for T in ${TAGS} ; do
             echo "$T"
           done | awk '{ print length, $0 }' | sort -nr | awk '{ print $2 }' | tee tags
-          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+          echo "tags=$(cat tags)" >> "$GITHUB_OUTPUT"
       - name: Set docker image names
         id: name
         run: |
+          DOCKER_IMAGE = "${{ inputs.image_name }}"
+          # If any tags look like prereleases, then we'll push our final image to our internal registry, not the public one.
           for TAG in ${{ steps.tag.outputs.tags }} ; do
             if ! [[ ${TAG} =~ ^[0-9.]*$ ]] ; then
               DOCKER_IMAGE="$(echo ${DOCKER_IMAGE} | sed 's/ironcore-images/ironcore-dev-1/')"
@@ -153,10 +150,12 @@ jobs:
 
   docker:
     needs: image
+    runs-on: ${{ matrix.runs_on }}
+    env:
+      DOCKER_BUILDKIT: 1
     strategy:
       matrix:
         runs_on: ${{ fromJson(inputs.docker_runs_on) }}
-    runs-on: ${{ matrix.runs_on }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -224,14 +223,12 @@ jobs:
           java-version: ${{ inputs.setup_scala_java_version }}
       - name: Build docker (Default)
         if: inputs.build_command == ''
-        env:
-          DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}
         run: |
           docker build \
           --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }} \
           ${{ inputs.configure_git_ssh && '--ssh=default="${HOME}/.ssh/id_ed25519"' || '' }} \
           ${{ inputs.docker_build_target }} \
-          --pull -t ${DOCKER_FULL_NAME} .
+          --pull -t ${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }} .
       - name: Build docker (Overridden)
         if: inputs.build_command != ''
         env:
@@ -313,8 +310,8 @@ jobs:
           xargs docker manifest create "${I}"
           docker manifest push "${I}"
       # This triggers the Deploy workflow's `release: released`
-      - name: "Mark GitHub release as not prerelease"
-        if: github.event.release != null && !inputs.skip_update_release
+      - name: Mark GitHub release as not prerelease
+        if: github.event.release != null && inputs.update_github_release
         uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.WORKFLOW_PAT }}
