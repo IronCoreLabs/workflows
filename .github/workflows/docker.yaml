@@ -74,6 +74,11 @@ on:
         type: string
         required: false
         default: ""
+      workflow_repo_ref_override:
+        description: Ref for `workflows` repo to check out if `docker.buildlog.sh` is needed. If unset, `main` will be checked out.
+        type: string
+        required: false
+        default: ""
 
 env:
   DOCKER_BUILDKIT: 1
@@ -83,7 +88,7 @@ jobs:
     if: github.actor != 'dependabot[bot]'
     runs-on: ${{ inputs.other_jobs_runs_on }}
     env:
-      DOCKER_IMAGE: ${{ inputs.image_name }}
+      DOCKER_IMAGE: ${{ inputs.image_name }} # This is needed by custom commands at runtime.
     outputs:
       images: ${{ steps.images.outputs.images }}
       tags: ${{ steps.tag.outputs.tags }}
@@ -152,10 +157,6 @@ jobs:
 
   docker:
     needs: image
-    env: # Needed for custom commands to access these variables at runtime
-      LONGTAG: ${{ needs.image.outputs.longtag }}
-      DOCKER_IMAGE: ${{ inputs.image_name }}
-      ARCH: # this will get overwritten later, but is here so IDE doesn't complain
     strategy:
       matrix:
         runs_on: ${{ fromJson(inputs.docker_runs_on) }}
@@ -175,6 +176,7 @@ jobs:
           username: ironcoreci
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Get canonical arch name
+        id: arch
         run: |
           ARCH="${{ runner.arch }}"
           case "${ARCH}" in
@@ -189,7 +191,7 @@ jobs:
             exit 1
           esac
           echo "Arch is '${ARCH}'"
-          echo "ARCH=${ARCH}" >> "$GITHUB_ENV"
+          echo "arch=${ARCH}" >> "$GITHUB_OUTPUT"
       - name: Configure git ssh access
         if: inputs.configure_git_ssh
         run: |
@@ -230,7 +232,7 @@ jobs:
       - name: Build docker (Default)
         if: inputs.build_command == ''
         env:
-          DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ env.ARCH }}
+          DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}
         run: |
           docker build \
           --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }} \
@@ -240,20 +242,20 @@ jobs:
       - name: Build docker (Overridden)
         if: inputs.build_command != ''
         env:
-          DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ env.ARCH }}
+          DOCKER_FULL_NAME: ${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}
         run: ${{ inputs.build_command }}
       # If the above command didn't produce the right image, the scan below will fail. That's what we want.
       - name: Scan docker image
         run: |
-          docker save -o /tmp/docker.tar "${{ steps.name.outputs.canonical }}-${ARCH}"
+          docker save -o /tmp/docker.tar "${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
           clamscan /tmp/docker.tar
       - name: Push it!
-        run: docker push "${{ steps.name.outputs.canonical }}-${ARCH}"
+        run: docker push "${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
       - name: Container hash
         id: container-hash
         run: |
           # Now that we've pushed the image, we can retrieve its hash and sanity check it.
-          IMG="${{ steps.name.outputs.canonical }}-${ARCH}"
+          IMG="${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
           HASH=$(docker inspect --format='{{ index .RepoDigests 0 }}' "${IMG}" | sed 's/.*@sha256://')
           echo "hash=${HASH}" >> "$GITHUB_OUTPUT"
           [[ "${HASH}" =~ ^[0-9a-f]+$ ]]
@@ -268,14 +270,21 @@ jobs:
           token: ${{ secrets.WORKFLOW_PAT }}
           fetch-depth: 2
           path: .github/tmp_buildlog_dir
-      - name: Configure Git
-        if: ${{ github.head_ref == '' && inputs.buildlog_repo != '' && !contains(needs.image.outputs.longtag, '-') }}
+      - name: Checkout workflows repo
+        if: ${{ github.head_ref == '' && inputs.buildlog_repo != '' && !contains(needs.image.outputs.longtag, '-')}}
+        uses: actions/checkout@v4
+        with:
+          repository: IronCoreLabs/workflows
+          ref: ${{ inputs.workflow_repo_ref_override }} # If empty, `main` will be checked out
+          token: ${{ secrets.WORKFLOW_PAT }}
+          fetch-depth: 2
+          path: .github/tmp_workflows_dir
+      - name: Update buildlog
+        if: ${{ github.head_ref == '' && inputs.buildlog_repo != '' && !contains(needs.image.outputs.longtag, '-')}}
         run: |
           git config --global user.email "ops@ironcorelabs.com"
           git config --global user.name "${{ github.repository }} CI"
-      - name: Update buildlog
-        if: ${{ github.head_ref == '' && inputs.buildlog_repo != '' && !contains(needs.image.outputs.longtag, '-')}}
-        run: .github/docker.buildlog.sh "$(basename "${{ inputs.buildlog_filename }}")" "${{ needs.image.outputs.longtag }}-${ARCH}" "${{ steps.container-hash.outputs.hash }}"
+          .github/tmp_workflows_dir/.github/docker.buildlog.sh "$(basename "${{ inputs.buildlog_filename }}")" "${{ needs.image.outputs.longtag }}-${ARCH}" "${{ steps.container-hash.outputs.hash }}"
 
   # This job pushes the image manifest (multi-arch image) and optionally creates a GitHub release.
   publish:
@@ -286,11 +295,6 @@ jobs:
         # Each entry in image is a space separated list of full image names with tags. We'll append "-$ARCH" to each one. The first
         # in each list is expected to be the most canonical.
         image: "${{ fromJSON(needs.image.outputs.images) }}"
-    env: # Needed for custom commands to access these variables at runtime
-      TAGS: ${{ needs.image.outputs.tags }}
-      ARCHS: ${{ inputs.archs }}
-      LONGTAG: ${{ needs.image.outputs.longtag }}
-      DOCKER_IMAGE: ${{ inputs.image_name }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -308,12 +312,12 @@ jobs:
       - name: Get canonical image name
         id: name
         run: echo "canonical=$(echo ${{ matrix.image }} | sed 's/ .*//')" >> "$GITHUB_OUTPUT"
-      - name: Pull images (Default)
+      - name: Pull images
         run: |
           for ARCH in ${{ inputs.archs }} ; do
             docker pull "${{ steps.name.outputs.canonical }}-${ARCH}"
           done
-      - name: Create and push manifest (Default)
+      - name: Create and push manifest
         run: |
           for I in ${{ matrix.image }} ; do
             for ARCH in ${{ inputs.archs }} ; do
@@ -333,23 +337,3 @@ jobs:
           tag: ${{ github.event.release.tag_name }}
           name: ${{ github.event.release.name }}
           omitBodyDuringUpdate: true
-
-  dump_contexts_to_log:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Dump GitHub context
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-        run: echo "$GITHUB_CONTEXT"
-      - name: Dump job context
-        env:
-          JOB_CONTEXT: ${{ toJson(job) }}
-        run: echo "$JOB_CONTEXT"
-      - name: Dump steps context
-        env:
-          STEPS_CONTEXT: ${{ toJson(steps) }}
-        run: echo "$STEPS_CONTEXT"
-      - name: Dump runner context
-        env:
-          RUNNER_CONTEXT: ${{ toJson(runner) }}
-        run: echo "$RUNNER_CONTEXT"
