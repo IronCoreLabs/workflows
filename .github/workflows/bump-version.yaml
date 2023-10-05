@@ -150,6 +150,7 @@ jobs:
         id: release-body
         run: |
           set -x
+          cat ${{ github.event_path }}
           # Get the most recent commit. Hopefully it was a PR merge.
           COMMIT=$(jq -r '.after' ${{ github.event_path }})
           if [ "${COMMIT}" = "null" ] || [ -z "${COMMIT}" ] ; then
