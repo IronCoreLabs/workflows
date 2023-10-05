@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# This script is copied from the depot repo; edit it there, not in the destination repo.
-
 # Set the semver in various files.
 
 # Always performs sanity checking:
