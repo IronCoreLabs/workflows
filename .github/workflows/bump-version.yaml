@@ -150,7 +150,6 @@ jobs:
         id: release-body
         run: |
           set -x
-          cat ${{ github.event_path }}
           # Get the most recent commit. Hopefully it was a PR merge.
           COMMIT=$(jq -r '.after' ${{ github.event_path }})
           if [ "${COMMIT}" = "null" ] || [ -z "${COMMIT}" ] ; then
@@ -175,7 +174,7 @@ jobs:
         if: ${{ !contains(steps.release.outputs.release, '-') || inputs.release_prereleases }}
         env:
           GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
-        run: gh release create "${{ steps.release.outputs.release }}" --prerelease=true --notes "${{ steps.release-body.outputs.body }}"
+        run: gh release create "${{ steps.release.outputs.release }}" --title "${{ steps.release.outputs.release }}" --prerelease=true --notes "${{ steps.release-body.outputs.body }}"
         working-directory: self
       - name: Trigger Docker
         # If we didn't make a GitHub Release, we need to trigger the Docker workflow manually

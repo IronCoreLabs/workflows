@@ -84,8 +84,6 @@ jobs:
       longtag: ${{ steps.tag.outputs.longest }}
       runners: ${{ steps.archs.outputs.runners }}
     steps:
-      - name: Print event
-        run: cat ${{ github.event_path }}
       - name: Set docker image tags
         id: tag
         run: |
