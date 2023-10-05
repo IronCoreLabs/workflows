@@ -330,5 +330,5 @@ jobs:
       - name: Mark GitHub release as not prerelease
         if: github.event.release != null && inputs.update_github_release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
         run: gh release edit --tag "${{ github.event.release.tag_name }}" --prerelease=false "${{ github.event.release.name }}"
