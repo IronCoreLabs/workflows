@@ -89,7 +89,7 @@ jobs:
         run: |
           if [ -n "${{ github.event.release.name }}" ] ; then
             # If TAG is 1.2.3, set TAGS to "1.2.3 1.2 1".
-            TAG="${{ github.event.release.name }}"
+            TAG="${{ github.event.release.tag_name }}"
             while ! [ -z "${TAG}" ] ; do
               TAGS="${TAGS} ${TAG}"
               TAG=$(echo ${TAG} | sed -E 's,\.?[^.]+$,,')
