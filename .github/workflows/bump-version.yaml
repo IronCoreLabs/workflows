@@ -79,8 +79,7 @@ jobs:
           fi
 
   bump:
-    needs:
-      - skip
+    needs: skip
     runs-on: ubuntu-22.04
     if: ${{ !needs.skip.outputs.skip }}
     steps:
@@ -174,7 +173,7 @@ jobs:
         # If the release isn't a prerelease version OR you want to make releases for prerelease versions
         if: ${{ !contains(steps.release.outputs.release, '-') || inputs.release_prereleases }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
         run: gh release create "${{ steps.release.outputs.release }}" --prerelease=true --notes "${{ steps.release-body.outputs.body }}"
         working-directory: self
       - name: Trigger Docker
