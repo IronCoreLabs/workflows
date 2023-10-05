@@ -16,18 +16,36 @@ on:
         type: string
         description: The name of an ARG variable in the Dockerfile that will be checked for compatibility with the version.
         required: true
+      workflows_repo_ref:
+        description: Ref for `workflows` repo to check out. Defaults to tag `check-docker-version-v0`.
+        type: string
+        required: false
+        default: "check-docker-version-v0"
+
 jobs:
   check_version:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout own repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.WORKFLOW_PAT }}
+          path: self
+      - name: Checkout workflows repo
+        uses: actions/checkout@v4
+        with:
+          repository: IronCoreLabs/workflows
+          ref: ${{ inputs.workflows_repo_ref }}
+          token: ${{ secrets.WORKFLOW_PAT }}
+          path: workflows
       - name: Check versions
         run: |
           set -x
-          REPOVERS="$(.github/bump-version.get.sh)"
+          REPOVERS="$(../workflows/.github/bump-version.get.sh)"
           DOCKERVERS="$(grep -E "^ARG ${{ inputs.dockervar }}=.*" Dockerfile | head -1 | sed 's/.*=//')"
           # $REPOVERS must be a string that begins with $DOCKERVERS and has an optional -something on the end.
           if ! [[ "${REPOVERS}" =~ ^${DOCKERVERS}(-.*)?$ ]] ; then
             echo "Version mismatch."
             exit 1
           fi
+        working-directory: self
