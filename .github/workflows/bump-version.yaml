@@ -176,6 +176,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "${{ steps.release.outputs.release }}" --prerelease=true --notes "${{ steps.release-body.outputs.body }}"
+        working-directory: self
       - name: Trigger Docker
         # If we didn't make a GitHub Release, we need to trigger the Docker workflow manually
         if: steps.github-release.outcome == 'skipped'
