@@ -65,6 +65,11 @@ on:
         type: boolean
         required: false
         default: false
+      bump_version_release_prefix:
+        description: Prefix to put on the front of release versions. Currently exists to put `v` at the start of TSC-Go versions.
+        type: string
+        required: false
+        default: ""
 
 jobs:
   # This job determines if we should run at all.
@@ -114,6 +119,8 @@ jobs:
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - name: Release
         id: release
+        env:
+          BUMP_VERSION_RELEASE_PREFIX: ${{ inputs.bump_version_release_prefix }}
         # Because the last step of this can race against other runs of this workflow, we need to retry in a loop.
         run: |
           set -x
