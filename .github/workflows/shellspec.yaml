@@ -1,6 +1,6 @@
 # Run automated tests. Currently just for bash scripts.
 
-name: CI
+name: Shellspec CI
 
 on:
   push:
