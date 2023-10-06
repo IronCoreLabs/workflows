@@ -185,3 +185,4 @@ jobs:
           if gh workflow view docker.yaml ; then
             gh workflow run docker.yaml -f "ref=${{ steps.release.outputs.release }}" -f "tags=${{ steps.release.outputs.release }}"
           fi
+        working-directory: self
