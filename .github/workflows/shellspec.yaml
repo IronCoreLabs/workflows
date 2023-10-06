@@ -1,0 +1,30 @@
+# Run automated tests. Currently just for bash scripts.
+
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: null
+  workflow_dispatch: null
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellspec
+        run: |
+          set -o pipefail
+          TRIES=0
+          while ! curl -fsSL https://git.io/shellspec | sh -s -- --yes ; do
+            TRIES=$(expr $TRIES + 1)
+            sleep 30
+            if [ $TRIES -gt 10 ] ; then
+              exit 1
+            fi
+          done
+      - name: Run tests
+        run: shellspec
+        working-directory: .github
