@@ -179,8 +179,9 @@ jobs:
       - name: Trigger Docker
         # If we didn't make a GitHub Release, we need to trigger the Docker workflow manually
         if: steps.github-release.outcome == 'skipped'
-        uses: benc-uk/workflow-dispatch@v1
-        with:
-          workflow: Docker
-          inputs: '{ "ref": "${{ steps.release.outputs.release }}", "tags": "${{ steps.release.outputs.release }}" }'
-          token: ${{ secrets.WORKFLOW_PAT }}
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+        run: |
+          if gh workflow view docker.yaml ; then
+            gh workflow run docker.yaml -f "ref=${{ steps.release.outputs.release }}" -f "tags=${{ steps.release.outputs.release }}"
+          fi
