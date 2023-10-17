@@ -1,5 +1,10 @@
 # This workflow updates files in the deployments repository, to use a new version of a docker image.
 
+# 1. Make a PR to update the generic recipe of the application to use the new container image.
+# 2. Change the staging environment to reference that PR branch.
+# 3. Comment on the original PR in the software repo, pointing to the deployment PR.
+# 4. Update local dev clusters to use the new container image.
+
 name: Deploy
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -56,7 +61,7 @@ jobs:
       with:
         ref: ${{ inputs.tag }}
         path: software
-    # Find the original PR to the software repo. The docker tag should correspond to a GitHub release, which should have a
+    # Find the original PR to the software repo. The git tag should correspond to a GitHub release, which should have a
     # description pointing to the PR number.
     - name: Get original PR
       id: software-pr
@@ -78,6 +83,7 @@ jobs:
     - name: Check out deployments
       uses: actions/checkout@v4
       with:
+        fetch-depth: 0
         repository: IronCoreLabs/deployments
         path: deployments
         token: ${{ secrets.WORKFLOW_PAT }}
@@ -86,7 +92,7 @@ jobs:
       working-directory: deployments
       run: |
         set -x
-        for DIR in * ; do
+        for DIR in apps/* ; do
           if ! [ -d "${DIR}" ] ; then
             continue
           fi
@@ -144,29 +150,30 @@ jobs:
         PR=$(gh pr view --json number --jq .number)
         echo "pr=$PR" >> "$GITHUB_OUTPUT"
 
-    # Update clusters-nonprod to use the new branch we just created in deployments.
-    - name: Check out clusters-nonprod
-      uses: actions/checkout@v4
-      with:
-        repository: IronCoreLabs/clusters-nonprod
-        path: clusters-nonprod
-        token: ${{ secrets.WORKFLOW_PAT }}
-    - name: Update clusters-nonprod
-      id: update-clusters-nonprod
-      working-directory: clusters-nonprod
+    # Update staging to use the new branch we just created.
+    - name: Update staging
+      id: update-staging
+      working-directory: deployments
       run: |
         set -x
+        git checkout main
         for RECIPE in "${{ steps.update-recipes.outputs.edited-recipes }}" ; do
-          for DIR in staging/* ; do
+          for DIR in envs/staging/* ; do
             if ! [ -d "${DIR}" ] ; then
               continue
             fi
             (
               cd "${DIR}"
               FILE="kustomization.yaml"
-              REPO="https://github.com/IronCoreLabs/deployments//${RECIPE}"
-              if yaml2json < "${FILE}" | jq -e --arg repo "${REPO}" '[.resources[] | test($repo + "(\\?.*)?$")] | any' ; then
-                sed "s^\(${REPO}\)\(\\?.*\)\{0,1\}$^\1?ref=${{ steps.promote-pr.outputs.branch }}^" < kustomization.yaml > /tmp/new
+              REPO="https://github.com/IronCoreLabs/deployments//apps/${RECIPE}"
+              if yaml2json < "${FILE}" | jq -e --arg repo "${REPO}" '[.resources[] | test("/" + $repo + "(\\?.*)?$")] | any' ; then
+                if grep -q "${REPO}\?ref=.*" kustomization.yaml ; then
+                  echo "${DIR}/kustomization.yaml is already testing another PR branch."
+                  echo "changed=false" >> $GITHUB_OUTPUT
+                  echo "message=${DIR}/kustomization.yaml is already testing another PR branch." >> $GITHUB_OUTPUT
+                  exit 0
+                fi
+                sed "s^\(${REPO}\)$^\1?ref=${{ steps.promote-pr.outputs.branch }}^" < kustomization.yaml > /tmp/new
                 mv /tmp/new kustomization.yaml
                 git add kustomization.yaml
                 touch /tmp/changed-files
@@ -177,11 +184,11 @@ jobs:
         if [ -f /tmp/changed-files ] ; then
           echo "changed=true" >> "$GITHUB_OUTPUT"
         fi
-    - name: Commit and push to clusters-nonprod
-      if: "${{ steps.update-clusters-nonprod.outputs.changed == 'true' }}"
-      working-directory: clusters-nonprod
+    - name: Commit and push to staging
+      if: "${{ steps.update-staging.outputs.changed == 'true' }}"
+      working-directory: deployments
       run: |
-        git commit -m "Test updated ${{ steps.promote-pr.outputs.branch }}"
+        git commit -m "Test PR #${{ steps.promote-pr.outputs.pr }}"
         TRIES=0
         # If git push fails, it's hopefully just a concurrent update that we can retry.
         while ! git push ; do
@@ -199,8 +206,14 @@ jobs:
       working-directory: software
       run: |
         set -x
-        echo "This build is ready for promotion to prod:" > /tmp/body.txt
-        echo "IronCoreLabs/deployments#${{ steps.promote-pr.outputs.pr }}" >> /tmp/body.txt
+        echo "Created IronCoreLabs/deployments#${{ steps.promote-pr.outputs.pr }} to deploy this build." >> /tmp/body.txt
+        if [ -n "${{ steps.update-staging.outputs.message }}" ] ; then
+          echo "${{ steps.update-staging.outputs.message }}" >> /tmp/body.txt
+        elif [ "${{ steps.update-staging.outputs.changed }}" = "true" ] ; then
+          echo "This build is ready for promotion to prod." >> /tmp/body.txt
+        else
+          echo "No apps in staging use this software; you'll need to manually evaluate the PR." >> /tmp/body.txt
+        fi
         gh pr comment -F /tmp/body.txt ${{ steps.software-pr.outputs.pr }}
 
     # Update the local dev clusters to use the new container.
