@@ -319,13 +319,17 @@ jobs:
           # Sometimes GCR gives random errors. Let's try a few times before giving up.
           for RETRY in $(seq 10) ; do
             for ARCH in ${{ inputs.archs }} ; do
-              docker pull "${{ steps.name.outputs.canonical }}-${ARCH}"
+              if ! docker pull "${{ steps.name.outputs.canonical }}-${ARCH}" ; then
+                echo "Attempt #${RETRY} failed."
+                sleep 30
+                continue
+              fi
             done
             IMGS=$(echo ${{ inputs.archs }} | tr ' ' '\n' | sed 's%^%${{ steps.name.outputs.canonical }}-%' | tr '\n' ' ')
-            if xargs docker manifest create "${{ steps.name.outputs.canonical }}" ${IMGS} ; then
+            if docker manifest create "${{ steps.name.outputs.canonical }}" ${IMGS} ; then
               break
             fi
-            echo "Failed after $RETRY attempts."
+            echo "Attempt #${RETRY} failed."
             sleep 30
           done
           docker manifest push "${{ steps.name.outputs.canonical }}"
