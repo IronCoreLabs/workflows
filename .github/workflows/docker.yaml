@@ -321,10 +321,15 @@ jobs:
           done
       - name: Create and push manifest
         run: |
-          for ARCH in ${{ inputs.archs }} ; do
-            echo "${{ steps.name.outputs.canonical }}-${ARCH}"
-          done | \
-          xargs docker manifest create "${{ steps.name.outputs.canonical }}"
+          # Sometimes GCR gives random errors. Let's try a few times before giving up.
+          for RETRY in $(seq 10) ; do
+            IMGS=$(echo ${{ inputs.archs }} | tr ' ' '\n' | sed 's%^%${{ steps.name.outputs.canonical }}-%' | tr '\n' ' ')
+            if xargs docker manifest create "${{ steps.name.outputs.canonical }}" ${IMGS} ; then
+              break
+            fi
+            echo "Failed after $RETRY attempts."
+            sleep 30
+          done
           docker manifest push "${{ steps.name.outputs.canonical }}"
       # This triggers the Deploy workflow's `release: released`
       - name: Mark GitHub release as not prerelease
