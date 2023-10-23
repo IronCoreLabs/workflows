@@ -92,7 +92,7 @@ jobs:
       working-directory: deployments
       run: |
         set -x
-        for DIR in apps/* ; do
+        for DIR in apps/*/base apps/*/mixins/* ; do
           if ! [ -d "${DIR}" ] ; then
             continue
           fi
