@@ -237,6 +237,7 @@ jobs:
             sed "s,\(FROM ${IMG_NAME}:\)[a-zA-Z0-9_.-]*,\\1${{ inputs.tag }}," < Tiltfile > Tiltfile.new
             mv Tiltfile.new Tiltfile
             touch /tmp/changed-depot
+          fi
         done
         if [ -f /tmp/changed-depot ] ; then
           echo "changed=true" >> "$GITHUB_OUTPUT"
