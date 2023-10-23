@@ -225,7 +225,7 @@ jobs:
         token: ${{ secrets.WORKFLOW_PAT }}
     - name: Update local dev clusters
       id: update-depot
-      working-directory: depot/localk8s
+      working-directory: depot/local-dev-cluster
       run: |
         set -x
         for IMG in ${{ inputs.images }} ; do
@@ -245,7 +245,7 @@ jobs:
       if: "${{ steps.update-depot.outputs.changed == 'true' }}"
       working-directory: depot
       run: |
-        COMMIT_MSG="Upgrade localk8s: [ ${THISREPO} -> ${{ inputs.tag }} ]"
+        COMMIT_MSG="Upgrade local-dev-cluster: [ ${THISREPO} -> ${{ inputs.tag }} ]"
         git commit -m "${COMMIT_MSG}"
         TRIES=0
         # If git push fails, it's hopefully just a concurrent update that we can retry.
