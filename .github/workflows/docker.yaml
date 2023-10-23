@@ -314,17 +314,26 @@ jobs:
       - name: Get canonical image name
         id: name
         run: echo "canonical=$(echo ${{ needs.image.outputs.images }} | sed 's/ .*//')" >> "$GITHUB_OUTPUT"
-      - name: Pull images
-        run: |
-          for ARCH in ${{ inputs.archs }} ; do
-            docker pull "${{ steps.name.outputs.canonical }}-${ARCH}"
-          done
       - name: Create and push manifest
         run: |
-          for ARCH in ${{ inputs.archs }} ; do
-            echo "${{ steps.name.outputs.canonical }}-${ARCH}"
-          done | \
-          xargs docker manifest create "${{ steps.name.outputs.canonical }}"
+          set -x
+          # Sometimes GCR gives random errors. Let's try a few times before giving up.
+          for RETRY in $(seq 10) ; do
+            for ARCH in ${{ inputs.archs }} ; do
+              if ! docker pull "${{ steps.name.outputs.canonical }}-${ARCH}" ; then
+                echo "Attempt #${RETRY} failed."
+                sleep 10
+                # Continue the outer loop, not the inner one.
+                continue 2
+              fi
+            done
+            IMGS=$(echo ${{ inputs.archs }} | tr ' ' '\n' | sed 's%^%${{ steps.name.outputs.canonical }}-%' | tr '\n' ' ')
+            if docker manifest create "${{ steps.name.outputs.canonical }}" ${IMGS} ; then
+              break
+            fi
+            echo "Attempt #${RETRY} failed."
+            sleep 10
+          done
           docker manifest push "${{ steps.name.outputs.canonical }}"
       # This triggers the Deploy workflow's `release: released`
       - name: Mark GitHub release as not prerelease
