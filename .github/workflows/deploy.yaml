@@ -119,7 +119,7 @@ jobs:
           echo "No recipes found with any of '${{ inputs.images }}' in them."
           exit 1
         fi
-        EDITED="$(sort -u < /tmp/edited-dirs | tr '\n' ' ')"
+        EDITED="$(sort -u < /tmp/edited-dirs | tr '\n' ' ' | sed 's/ $//')"
         echo "edited-recipes=${EDITED}" >> $GITHUB_OUTPUT
     - name: Commit and PR to deployments
       id: promote-pr
