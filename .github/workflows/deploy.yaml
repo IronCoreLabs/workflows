@@ -109,7 +109,7 @@ jobs:
               jq --arg name "${PLACEHOLDER}" '[(.images // []) | .[] | .name == $name] | any' < /tmp/kust.json > /tmp/status
               if [ $(cat /tmp/status) = true ] ; then
                 kustomize edit set image "${PLACEHOLDER}=${NEW_NAME}:${{ inputs.tag }}"
-                echo $(basename "${DIR}") >> /tmp/edited-dirs
+                echo "${DIR}" | sed 's,apps/\([^/]*\)/.*,\1,' >> /tmp/edited-dirs
                 git add "kustomization.yaml"
               fi
             done
@@ -119,10 +119,8 @@ jobs:
           echo "No recipes found with any of '${{ inputs.images }}' in them."
           exit 1
         fi
-        EDITED="$(sort -u < /tmp/edited-dirs)" # To replace "\n" with " ".
-        echo 'edited-recipes<<EOF' >> $GITHUB_OUTPUT
-        echo "${EDITED}" >> $GITHUB_OUTPUT
-        echo 'EOF' >> $GITHUB_OUTPUT
+        EDITED="$(sort -u < /tmp/edited-dirs | tr '\n' ' ')"
+        echo "edited-recipes=${EDITED}" >> $GITHUB_OUTPUT
     - name: Commit and PR to deployments
       id: promote-pr
       working-directory: deployments
@@ -166,14 +164,14 @@ jobs:
               cd "${DIR}"
               FILE="kustomization.yaml"
               REPO="https://github.com/IronCoreLabs/deployments//apps/${RECIPE}"
-              if yaml2json < "${FILE}" | jq -e --arg repo "${REPO}" '[.resources[] | test("/" + $repo + "(\\?.*)?$")] | any' ; then
-                if grep -q "${REPO}\?ref=.*" kustomization.yaml ; then
+              if yaml2json < "${FILE}" | jq -e --arg repo "${REPO}" '[.resources[] | test("/" + $repo + "/.*")] | any' ; then
+                if grep -q "${REPO}/[^?]*\?ref=.*" kustomization.yaml ; then
                   echo "${DIR}/kustomization.yaml is already testing another PR branch."
                   echo "changed=false" >> $GITHUB_OUTPUT
                   echo "message=${DIR}/kustomization.yaml is already testing another PR branch." >> $GITHUB_OUTPUT
                   exit 0
                 fi
-                sed "s^\(${REPO}\)$^\1?ref=${{ steps.promote-pr.outputs.branch }}^" < kustomization.yaml > /tmp/new
+                sed "s^\(${REPO}/[^?]*\)$^\1?ref=${{ steps.promote-pr.outputs.branch }}^" < kustomization.yaml > /tmp/new
                 mv /tmp/new kustomization.yaml
                 git add kustomization.yaml
                 touch /tmp/changed-files
