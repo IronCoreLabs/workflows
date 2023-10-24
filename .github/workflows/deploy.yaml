@@ -173,7 +173,7 @@ jobs:
                   echo "message=${DIR}/kustomization.yaml is already testing another PR branch." >> $GITHUB_OUTPUT
                   exit 0
                 fi
-                sed "s^ ../../../\(${REPO}/[^?]*\)$^https://github.com/IronCoreLabs/deployments//\1?ref=${{ steps.promote-pr.outputs.branch }}^" < kustomization.yaml > /tmp/new
+                sed "s^ ../../../\(${REPO}/[^?]*\)$^ https://github.com/IronCoreLabs/deployments//\1?ref=${{ steps.promote-pr.outputs.branch }}^" < kustomization.yaml > /tmp/new
                 mv /tmp/new kustomization.yaml
                 git add kustomization.yaml
                 touch /tmp/changed-files
