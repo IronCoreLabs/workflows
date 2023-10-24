@@ -165,15 +165,15 @@ jobs:
             (
               cd "${DIR}"
               FILE="kustomization.yaml"
-              REPO="/apps/${RECIPE}"
-              if yaml2json < "${FILE}" | jq -e --arg repo "${REPO}" '[.resources[] | contains($repo + "/")] | any' ; then
+              REPO="apps/${RECIPE}"
+              if yaml2json < "${FILE}" | jq -e --arg repo "${REPO}" '[.resources[] | contains("/" + $repo + "/")] | any' ; then
                 if grep -q "${REPO}/[^?]*\?ref=.*" kustomization.yaml ; then
                   echo "${DIR}/kustomization.yaml is already testing another PR branch."
                   echo "changed=false" >> $GITHUB_OUTPUT
                   echo "message=${DIR}/kustomization.yaml is already testing another PR branch." >> $GITHUB_OUTPUT
                   exit 0
                 fi
-                sed "s^\(${REPO}/[^?]*\)$^\1?ref=${{ steps.promote-pr.outputs.branch }}^" < kustomization.yaml > /tmp/new
+                sed "s^ ../../../\(${REPO}/[^?]*\)$^https://github.com/IronCoreLabs/deployments//\1?ref=${{ steps.promote-pr.outputs.branch }}^" < kustomization.yaml > /tmp/new
                 mv /tmp/new kustomization.yaml
                 git add kustomization.yaml
                 touch /tmp/changed-files
