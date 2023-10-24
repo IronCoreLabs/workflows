@@ -206,7 +206,7 @@ jobs:
         echo "This PR should only modify non-production files, and it should be auto-approved shortly." >> /tmp/body.txt
         echo "Once it's auto-approved, it should auto-merge." >> /tmp/body.txt
         gh pr create --assignee @me --fill --body-file /tmp/body.txt
-        gh pr merge --auto --squash
+        gh pr merge --auto --squash --admin
 
     # Comment on the original software PR, pointing to the new deployments PR.
     - name: Comment on the software PR
