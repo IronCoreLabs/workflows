@@ -163,8 +163,8 @@ jobs:
             (
               cd "${DIR}"
               FILE="kustomization.yaml"
-              REPO="https://github.com/IronCoreLabs/deployments//apps/${RECIPE}"
-              if yaml2json < "${FILE}" | jq -e --arg repo "${REPO}" '[.resources[] | test("/" + $repo + "/.*")] | any' ; then
+              REPO="/apps/${RECIPE}"
+              if yaml2json < "${FILE}" | jq -e --arg repo "${REPO}" '[.resources[] | contains($repo + "/")] | any' ; then
                 if grep -q "${REPO}/[^?]*\?ref=.*" kustomization.yaml ; then
                   echo "${DIR}/kustomization.yaml is already testing another PR branch."
                   echo "changed=false" >> $GITHUB_OUTPUT
