@@ -154,7 +154,8 @@ jobs:
       working-directory: deployments
       run: |
         set -x
-        # git checkout main
+        git checkout main
+        THISREPO="$(basename ${{ github.repository }})"
         git checkout -b "test-${THISREPO}-${{ inputs.tag }}"
         for RECIPE in "${{ steps.update-recipes.outputs.edited-recipes }}" ; do
           for DIR in envs/staging/* ; do
@@ -198,9 +199,10 @@ jobs:
         #   git pull
         #   sleep 30
         # done
+        THISREPO="$(basename ${{ github.repository }})"
         git push -u origin "test-${THISREPO}-${{ inputs.tag }}"
         echo "This PR is to test #${{ steps.promote-pr.outputs.pr }} in staging." >> /tmp/body.txt
-        echo ""
+        echo "" >> /tmp/body.txt
         echo "This PR should only modify non-production files, and it should be auto-approved shortly." >> /tmp/body.txt
         echo "Once it's auto-approved, it should auto-merge." >> /tmp/body.txt
         gh pr create --assignee @me --fill --body-file /tmp/body.txt
