@@ -186,6 +186,7 @@ jobs:
       if: "${{ steps.update-staging.outputs.changed == 'true' }}"
       working-directory: deployments
       run: |
+        git checkout main
         git commit -m "Test PR #${{ steps.promote-pr.outputs.pr }}"
         TRIES=0
         # If git push fails, it's hopefully just a concurrent update that we can retry.
