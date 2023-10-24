@@ -155,7 +155,7 @@ jobs:
       run: |
         set -x
         git checkout main
-        git checkout -b "test-${THISREPO}-${{ inputs.tag }}"
+        # git checkout -b "test-${THISREPO}-${{ inputs.tag }}"
         for RECIPE in "${{ steps.update-recipes.outputs.edited-recipes }}" ; do
           for DIR in envs/staging/* ; do
             if ! [ -d "${DIR}" ] ; then
@@ -187,14 +187,24 @@ jobs:
       if: "${{ steps.update-staging.outputs.changed == 'true' }}"
       working-directory: deployments
       run: |
-        git commit -m "Test PR #${{ steps.promote-pr.outputs.pr }}"
-        git push -u origin "test-${THISREPO}-${{ inputs.tag }}"
-        echo "This PR is to test #${{ steps.promote-pr.outputs.pr }} in staging." >> /tmp/body.txt
-        echo ""
-        echo "This PR should only modify non-production files, and it should be auto-approved shortly." >> /tmp/body.txt
-        echo "Once it's auto-approved, it should auto-merge." >> /tmp/body.txt
-        gh pr create --assignee @me --fill --body-file /tmp/body.txt
-        gh pr merge --auto --squash
+        git commit -m "Test PR #${{ steps.promote-pr.outputs.pr }} in staging"
+        TRIES=0
+        # If git push fails, it's hopefully just a concurrent update that we can retry.
+        while ! git push ; do
+          TRIES=$(expr ${TRIES} + 1)
+          if [ "${TRIES}" -ge 5 ] ; then
+            break
+          fi
+          git pull
+          sleep 30
+        done
+        # git push -u origin "test-${THISREPO}-${{ inputs.tag }}"
+        # echo "This PR is to test #${{ steps.promote-pr.outputs.pr }} in staging." >> /tmp/body.txt
+        # echo ""
+        # echo "This PR should only modify non-production files, and it should be auto-approved shortly." >> /tmp/body.txt
+        # echo "Once it's auto-approved, it should auto-merge." >> /tmp/body.txt
+        # gh pr create --assignee @me --fill --body-file /tmp/body.txt
+        # gh pr merge --auto --squash
 
     # Comment on the original software PR, pointing to the new deployments PR.
     - name: Comment on the software PR
@@ -202,6 +212,7 @@ jobs:
       working-directory: software
       run: |
         set -x
+        rm -f /tmp/body.txt
         echo "Created IronCoreLabs/deployments#${{ steps.promote-pr.outputs.pr }} to deploy this build." >> /tmp/body.txt
         if [ -n "${{ steps.update-staging.outputs.message }}" ] ; then
           echo "${{ steps.update-staging.outputs.message }}" >> /tmp/body.txt
