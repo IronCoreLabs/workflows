@@ -196,7 +196,16 @@ jobs:
         echo "This PR should only modify non-production files, and it should be auto-approved shortly." >> /tmp/body.txt
         echo "Once it's auto-approved, it should auto-merge." >> /tmp/body.txt
         gh pr create --assignee @me --fill --body-file /tmp/body.txt
-        gh pr checks --watch --required
+        # Avoid a race condition with checks not existing immediately upon PR creation.
+        TRY=1
+        while ! gh pr checks --watch --required ; do
+          sleep 10
+          TRY=$(expr $TRY + 1)
+          if [ $TRY -ge 30 ] ; then
+            echo "Failed to wait for PR checks."
+            exit 1
+          fi
+        done
         gh pr merge --admin --squash
 
     # Comment on the original software PR, pointing to the new deployments PR.
