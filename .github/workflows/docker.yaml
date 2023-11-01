@@ -180,7 +180,7 @@ jobs:
           ref: ${{ github.event.inputs.ref }}${{ github.event.release.tag_name }}
       - name: Log in to docker
         # This avoids rate limits. https://buildjet.com/for-github-actions/docs/faq#docker-rate-limiting
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ironcoreci
           password: ${{ secrets.DOCKERHUB_TOKEN }}
