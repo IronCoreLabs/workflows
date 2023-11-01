@@ -67,7 +67,7 @@ jobs:
         with:
           keys: ${{ secrets.IRONHIDE_KEYS }}
           input: ${{ inputs.files_to_decrypt }}
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node_version }}
           cache: yarn
