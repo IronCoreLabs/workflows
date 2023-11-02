@@ -162,7 +162,8 @@ jobs:
     - name: Stage the PR
       if: "${{ steps.software-pr.outputs.pr != ''}}"
       working-directory: deployments
-      run: gh workflow run stage.yaml -F pr_branch=${{ steps.promote-pr.outputs.branch }}
+      # TODO Remove " -r stage-race" before merging.
+      run: gh workflow run stage.yaml -F pr_branch=${{ steps.promote-pr.outputs.branch }} -r stage-race
 
   depot:
     runs-on: ubuntu-22.04
