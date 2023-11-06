@@ -28,7 +28,7 @@ concurrency:
         description: GitHub personal access token with at least "repo" permissions to both this repo and the deployments repo.
         required: true
 jobs:
-  deploy-overlay:
+  deployments:
     runs-on: ubuntu-22.04
     steps:
     - name: Set up GitHub auth
@@ -148,66 +148,6 @@ jobs:
         PR=$(gh pr view --json number --jq .number)
         echo "pr=$PR" >> "$GITHUB_OUTPUT"
 
-    # Update staging to use the new branch we just created.
-    - name: Update staging
-      id: update-staging
-      working-directory: deployments
-      run: |
-        set -x
-        git checkout main
-        THISREPO="$(basename ${{ github.repository }})"
-        git checkout -b "test-${THISREPO}-${{ inputs.tag }}"
-        for RECIPE in "${{ steps.update-recipes.outputs.edited-recipes }}" ; do
-          for DIR in envs/staging/* ; do
-            if ! [ -d "${DIR}" ] ; then
-              continue
-            fi
-            (
-              cd "${DIR}"
-              FILE="kustomization.yaml"
-              REPO="apps/${RECIPE}"
-              if yaml2json < "${FILE}" | jq -e --arg repo "${REPO}" '[.resources[] | contains("/" + $repo + "/")] | any' ; then
-                if grep -q "${REPO}/[^?]*\?ref=.*" kustomization.yaml ; then
-                  echo "${DIR}/kustomization.yaml is already testing another PR branch."
-                  echo "changed=false" >> $GITHUB_OUTPUT
-                  echo "message=${DIR}/kustomization.yaml is already testing another PR branch." >> $GITHUB_OUTPUT
-                  exit 0
-                fi
-                sed "s^ ../../../\(${REPO}/[^?]*\)$^ https://github.com/IronCoreLabs/deployments//\1?ref=${{ steps.promote-pr.outputs.branch }}^" < kustomization.yaml > /tmp/new
-                mv /tmp/new kustomization.yaml
-                git add kustomization.yaml
-                touch /tmp/changed-files
-              fi
-            )
-          done
-        done
-        if [ -f /tmp/changed-files ] ; then
-          echo "changed=true" >> "$GITHUB_OUTPUT"
-        fi
-    - name: Commit and push to staging
-      if: "${{ steps.update-staging.outputs.changed == 'true' }}"
-      working-directory: deployments
-      run: |
-        git commit -m "Test PR #${{ steps.promote-pr.outputs.pr }} in staging"
-        THISREPO="$(basename ${{ github.repository }})"
-        git push -u origin "test-${THISREPO}-${{ inputs.tag }}"
-        echo "This PR is to test #${{ steps.promote-pr.outputs.pr }} in staging." >> /tmp/body.txt
-        echo "" >> /tmp/body.txt
-        echo "This PR should only modify non-production files, and it should be auto-approved shortly." >> /tmp/body.txt
-        echo "Once it's auto-approved, it should auto-merge." >> /tmp/body.txt
-        gh pr create --assignee @me --fill --body-file /tmp/body.txt
-        # Avoid a race condition with checks not existing immediately upon PR creation.
-        TRY=1
-        while ! gh pr checks --watch --required ; do
-          sleep 10
-          TRY=$(expr $TRY + 1)
-          if [ $TRY -ge 30 ] ; then
-            echo "Failed to wait for PR checks."
-            exit 1
-          fi
-        done
-        gh pr merge --admin --squash
-
     # Comment on the original software PR, pointing to the new deployments PR.
     - name: Comment on the software PR
       if: "${{ steps.software-pr.outputs.pr != ''}}"
@@ -216,15 +156,17 @@ jobs:
         set -x
         rm -f /tmp/body.txt
         echo "Created IronCoreLabs/deployments#${{ steps.promote-pr.outputs.pr }} to deploy this build." >> /tmp/body.txt
-        if [ -n "${{ steps.update-staging.outputs.message }}" ] ; then
-          echo "${{ steps.update-staging.outputs.message }}" >> /tmp/body.txt
-        elif [ "${{ steps.update-staging.outputs.changed }}" = "true" ] ; then
-          echo "This build is ready for promotion to prod." >> /tmp/body.txt
-        else
-          echo "No apps in staging use this software; you'll need to manually evaluate the PR." >> /tmp/body.txt
-        fi
         gh pr comment -F /tmp/body.txt ${{ steps.software-pr.outputs.pr }}
 
+    # Kick off the staging process.
+    - name: Stage the PR
+      if: "${{ steps.software-pr.outputs.pr != ''}}"
+      working-directory: deployments
+      run: gh workflow run stage.yaml -F pr_branch=${{ steps.promote-pr.outputs.branch }}
+
+  depot:
+    runs-on: ubuntu-22.04
+    steps:
     # Update the local dev clusters to use the new container.
     - name: Check out depot
       uses: actions/checkout@v4
