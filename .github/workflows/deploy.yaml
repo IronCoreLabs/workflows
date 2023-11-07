@@ -197,6 +197,8 @@ jobs:
       if: "${{ steps.update-depot.outputs.changed == 'true' }}"
       working-directory: depot
       run: |
+        git config --global user.email ops@ironcorelabs.com
+        git config --global user.name "Leeroy Travis"
         COMMIT_MSG="Upgrade local-dev-cluster: [ ${THISREPO} -> ${{ inputs.tag }} ]"
         git commit -m "${COMMIT_MSG}"
         TRIES=0
