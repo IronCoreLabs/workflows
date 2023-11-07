@@ -77,7 +77,9 @@ jobs:
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
-        run: sudo apt install ${{ inputs.additional_system_deps }}
+        run: |
+          sudo apt update
+          sudo apt install ${{ inputs.additional_system_deps }}
       - uses: IronCoreLabs/rust-toolchain@v1
         with:
           toolchain: ${{ matrix.rust_version }}

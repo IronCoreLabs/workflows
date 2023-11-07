@@ -73,7 +73,9 @@ jobs:
           cache: yarn
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
-        run: sudo apt install ${{ inputs.additional_system_deps }}
+        run: |
+          sudo apt update
+          sudo apt install ${{ inputs.additional_system_deps }}
       - name: Install modules
         run: yarn
       - name: Run tests
