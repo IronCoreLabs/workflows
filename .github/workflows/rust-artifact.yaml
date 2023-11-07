@@ -76,7 +76,9 @@ jobs:
           echo "rust_root=$root" >> $GITHUB_OUTPUT
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
-        run: sudo apt install ${{ inputs.additional_system_deps }}
+        run: |
+          sudo apt update
+          sudo apt install ${{ inputs.additional_system_deps }}
       - uses: IronCoreLabs/rust-toolchain@v1
         with:
           targets: ${{ matrix.rust_target }}

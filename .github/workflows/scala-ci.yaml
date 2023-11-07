@@ -46,7 +46,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
-        run: sudo apt install ${{ inputs.additional_system_deps }}
+        run: |
+          sudo apt update
+          sudo apt install ${{ inputs.additional_system_deps }}
       - name: Restore caches
         uses: coursier/cache-action@v6
       - name: Setup Scala
