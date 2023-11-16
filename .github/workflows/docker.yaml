@@ -329,6 +329,8 @@ jobs:
               fi
             done
             if docker manifest create "${{ steps.name.outputs.canonical }}" ${IMGS} ; then
+              # We'll re-create this below, in the loop.
+              docker manifest rm "${{ steps.name.outputs.canonical }}"
               break
             fi
             echo "Attempt #${RETRY} failed."
