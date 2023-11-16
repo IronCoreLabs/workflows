@@ -185,7 +185,7 @@ jobs:
             IMG_NAME="${{ inputs.image-override }}"
           fi
           if grep "${IMG_NAME}" Tiltfile ; then
-            sed "s,\(FROM ${IMG_NAME}:\)[a-zA-Z0-9_.-]*,\\1${{ inputs.tag }}," < Tiltfile > Tiltfile.new
+            sed "s,\(FROM ${IMG_NAME}\):[a-zA-Z0-9_.-]*,\\1:${{ inputs.tag }}," < Tiltfile > Tiltfile.new
             mv Tiltfile.new Tiltfile
             touch /tmp/changed-depot
           fi
