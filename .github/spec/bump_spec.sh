@@ -19,11 +19,13 @@ Describe 'bump-version.bump.sh'
             "r#5" release    1.2.9-pre         1.2.9            1.2.10-pre
             "r#6" release    1.2.0-pre         1.2.0            1.2.1-pre
             "r#7" release    0.1.119-pre       0.1.119          0.1.120-pre
+            "r#8" release    1.2.3-SNAPSHOT    1.2.3            1.2.4-pre
             "p#1" prerelease 1.2.3-pre.4       1.2.3-rc.4       1.2.3-pre.5
             "p#2" prerelease 1.2.3-pre.4.5.6   1.2.3-rc.4.5.6   1.2.3-pre.4.5.7
             "p#3" prerelease 1.2.3-pre         1.2.3-rc.0       1.2.3-pre.1
             "p#4" prerelease 1.2.3             1.2.3-rc.0       1.2.3-pre.1
             "p#5" prerelease 1.2.3_p4-r5-pre.1 1.2.3_p4-r5-rc.1 1.2.3_p4-r5-pre.2
+            "p#6" prerelease 1.2.3-SNAPSHOT    1.2.3-rc.0       1.2.3-pre.1
         End
         It "example $1"
             When call testit "$2" "$3"

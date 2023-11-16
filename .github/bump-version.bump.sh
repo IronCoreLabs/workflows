@@ -47,7 +47,7 @@ if [ -z "${RELEASEVERS}" ] ; then
         ;;
     "prerelease")
         # Replace [-.]pre[-.$] with [-.]rc[-.$].
-        RELEASEVERS="$(echo "${CURRENTVERS}" | sed -E 's/([-.])pre([-.]|$)/\1rc\2/')"
+        RELEASEVERS="$(echo "${CURRENTVERS}" | sed -E 's/([-.])(pre|SNAPSHOT)([-.]|$)/\1rc\3/')"
         # If no [-.]rc[-.$], append -rc.0.
         if ! [[ ${RELEASEVERS} =~ [-.]rc([-.]|$) ]] ; then
             RELEASEVERS="${RELEASEVERS}-rc.0"
