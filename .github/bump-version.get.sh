@@ -88,6 +88,10 @@ for FILE in ${VERSFILES} ; do
     if [ -z "${CURRENTVERS}" ] ; then
         CURRENTVERS="${VERS}"
     fi
+    # If this version is more precise than current version, set current version.
+    if [[ ${CURRENTVERS} =~ -SNAPSHOT$ ]] && ! [[ ${VERS} =~ -SNAPSHOT$ ]] ; then
+        CURRENTVERS="${VERS}"
+    fi
 
     # Compare this file's version to other files' version. Ignore anything after the "-" in a pre-release version, but keep the "-"
     # so a release version is unequal to a pre-release.
