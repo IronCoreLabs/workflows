@@ -317,6 +317,7 @@ jobs:
       - name: Create and push manifest
         run: |
           set -x
+          IMGS=$(echo ${{ inputs.archs }} | tr ' ' '\n' | sed 's%^%${{ steps.name.outputs.canonical }}-%' | tr '\n' ' ')
           # Sometimes GCR gives random errors. Let's try a few times before giving up.
           for RETRY in $(seq 10) ; do
             for ARCH in ${{ inputs.archs }} ; do
@@ -327,14 +328,17 @@ jobs:
                 continue 2
               fi
             done
-            IMGS=$(echo ${{ inputs.archs }} | tr ' ' '\n' | sed 's%^%${{ steps.name.outputs.canonical }}-%' | tr '\n' ' ')
             if docker manifest create "${{ steps.name.outputs.canonical }}" ${IMGS} ; then
               break
             fi
             echo "Attempt #${RETRY} failed."
             sleep 10
           done
-          docker manifest push "${{ steps.name.outputs.canonical }}"
+          # If that worked, we should be able to create each of the aliases (e.g. 4.12.0, 4.12, 4).
+          for IMAGE in ${{ needs.image.outputs.images }} ; do
+            docker manifest create "$IMAGE" ${IMGS}
+            docker manifest push "$IMAGE"
+          done
       # This triggers the Deploy workflow's `release: released`
       - name: Mark GitHub release as not prerelease
         if: github.event.release != null && inputs.update_github_release
