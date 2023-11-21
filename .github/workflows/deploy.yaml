@@ -191,6 +191,7 @@ jobs:
           fi
         done
         if [ -f /tmp/changed-depot ] ; then
+          git add Tiltfile
           echo "changed=true" >> "$GITHUB_OUTPUT"
         fi
     - name: Commit and push to depot
