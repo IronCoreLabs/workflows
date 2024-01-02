@@ -198,7 +198,7 @@ jobs:
         run: ${{inputs.cargo_command_env_vars}} cargo llvm-cov report --cobertura --output-path cobertura.xml
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Archive code coverage results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: code-coverage-report
           path: ${{ needs.vars.outputs.rust_root }}/target/llvm-cov/html/
