@@ -229,7 +229,14 @@ jobs:
           gcloud auth configure-docker --quiet
       - name: Get canonical image name
         id: name
-        run: echo "canonical=$(echo ${{ needs.image.outputs.images }} sed 's/ /\n/g' | awk '{cur=length($0); recs[cur] = recs[cur] $0 ORS; max=(cur>max?cur:max)} END{printf "%s", recs[max]}')" >> "$GITHUB_OUTPUT"
+        run: |
+          canonical=$(echo gcr.io/ironcore-images/tenant-security-logdriver:4 gcr.io/ironcore-images/tenant-security-logdriver:4.3 gcr.io/ironcore-images/tenant-security-logdriver:4.3.1 | sed 's/ /\n/g' | awk '{cur = length($0); if (cur == max) {longest = "ERROR"; exit;} else if (cur > max) {longest = $0; max = cur;}} END {printf "%s", longest}');
+          if [ "$canonical" == "ERROR" ] ; then
+            >&2 echo "Found multiple tags that could be canonical. There can only be one.";
+            exit 1;
+          else
+            echo "canonical=$canonical" >> "$GITHUB_OUTPUT";
+          fi
       - name: Extra commands
         if: inputs.extra_commands != ''
         run: ${{ inputs.extra_commands }}
