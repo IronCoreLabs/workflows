@@ -229,7 +229,7 @@ jobs:
           gcloud auth configure-docker --quiet
       - name: Get canonical image name
         id: name
-        run: echo "canonical=$(echo ${{ needs.image.outputs.images }} | sed 's/ .*//')" >> "$GITHUB_OUTPUT"
+        run: echo "canonical=$(echo ${{ needs.image.outputs.images }} sed 's/ /\n/g' | awk '{cur=length($0); recs[cur] = recs[cur] $0 ORS; max=(cur>max?cur:max)} END{printf "%s", recs[max]}')" >> "$GITHUB_OUTPUT"
       - name: Extra commands
         if: inputs.extra_commands != ''
         run: ${{ inputs.extra_commands }}
