@@ -230,7 +230,7 @@ jobs:
       - name: Get canonical image name
         id: name
         run: |
-          canonical=$(echo gcr.io/ironcore-images/tenant-security-logdriver:4 gcr.io/ironcore-images/tenant-security-logdriver:4.3 gcr.io/ironcore-images/tenant-security-logdriver:4.3.1 | sed 's/ /\n/g' | awk '{cur = length($0); if (cur == max) {longest = "ERROR"; exit;} else if (cur > max) {longest = $0; max = cur;}} END {printf "%s", longest}');
+          canonical=$(echo ${{ needs.image.outputs.images }} | sed 's/ /\n/g' | awk '{cur = length($0); if (cur == max) {longest = "ERROR"; exit;} else if (cur > max) {longest = $0; max = cur;}} END {printf "%s", longest}');
           if [ "$canonical" == "ERROR" ] ; then
             >&2 echo "Found multiple tags that could be canonical. There can only be one.";
             exit 1;
