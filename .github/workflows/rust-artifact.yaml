@@ -49,10 +49,10 @@ on:
     secrets:
       TOOL_CACHE_SECRET_KEY:
         description: "AWS secret key to access our Rust tool cache S3 bucket."
-        required: true
+        required: false
       SCCACHE_AWS_SECRET:
         description: "AWS secret key to access our sccache S3 bucket."
-        required: true
+        required: false
 
 jobs:
   cargo-artifact:
@@ -83,7 +83,8 @@ jobs:
         with:
           targets: ${{ matrix.rust_target }}
       - name: Install sccache
-        uses: IronCoreLabs/rust-install@v0.1.0
+        if: ${{ secrets.SCCACHE_AWS_SECRET != '' }}
+        uses: IronCoreLabs/rust-install@v0.1.2
         with:
           crate: sccache
           accesskey: AKIAU2WBY6VDTC563V7G
@@ -91,6 +92,7 @@ jobs:
           os: ${{ join(matrix.os) }}
           version: latest
       - name: Setup sccache env variables
+        if: ${{ secrets.SCCACHE_AWS_SECRET != '' }}
         run: |
           echo "CC=$(which cc)" >> $GITHUB_ENV
           echo "RUSTC_WRAPPER=$HOME/.cargo/bin/sccache" >> $GITHUB_ENV

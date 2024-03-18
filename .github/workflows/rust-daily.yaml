@@ -85,7 +85,7 @@ jobs:
           toolchain: ${{ matrix.rust_version }}
           targets: ${{ matrix.rust_target }}
       - name: Install sccache
-        uses: IronCoreLabs/rust-install@v0.1.0
+        uses: IronCoreLabs/rust-install@v0.1.2
         with:
           crate: sccache
           accesskey: AKIAU2WBY6VDTC563V7G
