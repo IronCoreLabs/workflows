@@ -70,10 +70,10 @@ on:
     secrets:
       TOOL_CACHE_SECRET_KEY:
         description: "AWS secret key to access our Rust tool cache S3 bucket."
-        required: true
+        required: false
       SCCACHE_AWS_SECRET:
         description: "AWS secret key to access our sccache S3 bucket."
-        required: true
+        required: false
 
 jobs:
   # Assigns some variables, because GHA doesn't expand variables in inputs.*.default.
@@ -94,6 +94,9 @@ jobs:
   cargo-test:
     runs-on: buildjet-2vcpu-ubuntu-2204
     needs: vars
+    env:
+      SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET }}
+      TOOL_CACHE_SECRET_KEY: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
     strategy:
       matrix:
         rust_version: "${{ fromJSON(inputs.test_matrix_rust_version) }}"
@@ -121,7 +124,8 @@ jobs:
           toolchain: ${{ matrix.rust_version }}
           targets: ${{ matrix.rust_target }}
       - name: Install sccache
-        uses: IronCoreLabs/rust-install@v0.1.0
+        if: env.SCCACHE_AWS_SECRET != ''
+        uses: IronCoreLabs/rust-install@v0.1.2
         with:
           crate: sccache
           accesskey: AKIAU2WBY6VDTC563V7G
@@ -129,11 +133,12 @@ jobs:
           os: buildjet-2vcpu-ubuntu-2204
           version: latest
       - name: Setup sccache env variables
+        if: env.SCCACHE_AWS_SECRET != ''
         run: |
           echo "CC=$(which cc)" >> $GITHUB_ENV
           echo "RUSTC_WRAPPER=$HOME/.cargo/bin/sccache" >> $GITHUB_ENV
           echo "AWS_ACCESS_KEY_ID=AKIAU2WBY6VDVHUO5WSN" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ env.SCCACHE_AWS_SECRET }}" >> $GITHUB_ENV
           echo "SCCACHE_BUCKET=sccache-rust" >> $GITHUB_ENV
           echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
           echo "SCCACHE_REGION=us-west-2" >> $GITHUB_ENV
@@ -149,11 +154,15 @@ jobs:
         if: ${{ !matrix.build_only }}
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Print sccache stats
+        if: env.SCCACHE_AWS_SECRET != ''
         run: sccache -s
 
   coverage:
     runs-on: buildjet-2vcpu-ubuntu-2204
     needs: vars
+    env:
+      SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET }}
+      TOOL_CACHE_SECRET_KEY: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
     if: github.actor != 'dependabot[bot]' && github.event_name == 'pull_request'
     steps:
       - name: Configure git ssh access
@@ -171,14 +180,16 @@ jobs:
           sudo apt install ${{ inputs.additional_system_deps }}
       - uses: IronCoreLabs/rust-toolchain@v1
       - name: Install sccache
-        uses: IronCoreLabs/rust-install@v0.1.0
+        if: env.SCCACHE_AWS_SECRET != ''
+        uses: IronCoreLabs/rust-install@v0.1.2
         with:
           crate: sccache
           accesskey: AKIAU2WBY6VDTC563V7G
-          secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
+          secretkey: ${{ env.TOOL_CACHE_SECRET_KEY }}
           os: buildjet-2vcpu-ubuntu-2204
           version: latest
       - name: Setup sccache env variables
+        if: env.SCCACHE_AWS_SECRET != ''
         run: |
           echo "CC=$(which cc)" >> $GITHUB_ENV
           echo "RUSTC_WRAPPER=$HOME/.cargo/bin/sccache" >> $GITHUB_ENV
@@ -231,7 +242,7 @@ jobs:
       - run: ${{inputs.cargo_command_env_vars}} cargo fmt --all -- --check
         working-directory: ${{ needs.vars.outputs.rust_root }}
       - name: Install cargo-sort
-        uses: IronCoreLabs/rust-install@v0.1.0
+        uses: IronCoreLabs/rust-install@v0.1.2
         with:
           crate: cargo-sort
           accesskey: AKIAU2WBY6VDTC563V7G

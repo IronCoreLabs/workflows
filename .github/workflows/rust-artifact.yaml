@@ -49,14 +49,17 @@ on:
     secrets:
       TOOL_CACHE_SECRET_KEY:
         description: "AWS secret key to access our Rust tool cache S3 bucket."
-        required: true
+        required: false
       SCCACHE_AWS_SECRET:
         description: "AWS secret key to access our sccache S3 bucket."
-        required: true
+        required: false
 
 jobs:
   cargo-artifact:
     runs-on: ${{ matrix.os }}
+    env:
+      SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET }}
+      TOOL_CACHE_SECRET_KEY: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
     strategy:
       fail-fast: false
       matrix:
@@ -83,19 +86,21 @@ jobs:
         with:
           targets: ${{ matrix.rust_target }}
       - name: Install sccache
-        uses: IronCoreLabs/rust-install@v0.1.0
+        if: env.SCCACHE_AWS_SECRET != ''
+        uses: IronCoreLabs/rust-install@v0.1.2
         with:
           crate: sccache
           accesskey: AKIAU2WBY6VDTC563V7G
-          secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
+          secretkey: ${{ env.TOOL_CACHE_SECRET_KEY }}
           os: ${{ join(matrix.os) }}
           version: latest
       - name: Setup sccache env variables
+        if: env.SCCACHE_AWS_SECRET != ''
         run: |
           echo "CC=$(which cc)" >> $GITHUB_ENV
           echo "RUSTC_WRAPPER=$HOME/.cargo/bin/sccache" >> $GITHUB_ENV
           echo "AWS_ACCESS_KEY_ID=AKIAU2WBY6VDVHUO5WSN" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ env.SCCACHE_AWS_SECRET }}" >> $GITHUB_ENV
           echo "SCCACHE_BUCKET=sccache-rust" >> $GITHUB_ENV
           echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
           echo "SCCACHE_REGION=us-west-2" >> $GITHUB_ENV
@@ -123,4 +128,5 @@ jobs:
             ${{ steps.rust_root.outputs.rust_root }}/target/${{ inputs.build_profile }}/*.so
           if-no-files-found: error
       - name: Print sccache stats
+        if: env.SCCACHE_AWS_SECRET != ''
         run: sccache -s
