@@ -215,6 +215,9 @@ jobs:
           path: ${{ needs.vars.outputs.rust_root }}/target/llvm-cov/html/
       - name: Post code coverage to PR comment
         if: ${{ github.base_ref != '' }}
+        # If this is run from a fork, this will fail to post a comment on the PR.
+        # Since the coverage is also uploaded as an artifact, we don't consider this fatal.
+        continue-on-error: true
         uses: 5monkeys/cobertura-action@v13
         with:
           path: ${{ needs.vars.outputs.rust_root }}/cobertura.xml
