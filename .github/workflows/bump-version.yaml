@@ -77,6 +77,7 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       skip: ${{ steps.skip.outputs.skip }}
+    if: github.event_name != 'pull_request'
     steps:
       - name: Maybe skip
         id: skip
@@ -88,10 +89,30 @@ jobs:
             fi
           fi
 
+  check-versions:
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout own repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.WORKFLOW_PAT }}
+          path: self
+      - name: Checkout workflows repo
+        uses: actions/checkout@v4
+        with:
+          repository: IronCoreLabs/workflows
+          ref: ${{ inputs.workflows_repo_ref }}
+          token: ${{ secrets.WORKFLOW_PAT }}
+          path: workflows
+      - name: Check all version numbers match
+        run: ../workflows/.github/bump-version.get.sh
+        working-directory: self
+
   bump:
     needs: skip
     runs-on: ubuntu-22.04
-    if: ${{ !needs.skip.outputs.skip }}
+    if: ${{ !needs.skip.outputs.skip && github.event_name != 'pull_request'}}
     steps:
       - name: Checkout own repo
         uses: actions/checkout@v4
