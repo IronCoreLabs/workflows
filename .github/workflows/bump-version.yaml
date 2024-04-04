@@ -105,7 +105,8 @@ jobs:
           ref: ${{ inputs.workflows_repo_ref }}
           token: ${{ secrets.WORKFLOW_PAT }}
           path: workflows
-      - run: ../workflows/.github/bump-version.get.sh
+      - name: Check all version numbers match
+        run: ../workflows/.github/bump-version.get.sh
         working-directory: self
 
   bump:
