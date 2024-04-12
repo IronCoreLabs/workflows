@@ -48,6 +48,27 @@ updating a deployment in Kubernetes, or it could mean publishing a new release o
    - Triggered by publishing a release (`prerelease: false`), or workflow_dispatch.
    - Gets the docker tag either from the release name or a workflow_dispatch required parameter.
 
+### Authentication
+
+Several actions require a secret called `WORKFLOW_PAT` to be set to the value
+of a personal access token with permissions to operate on various repos. A
+personal access token (PAT) has been created for the `leeroy-travis` user in
+GitHub, and the value of the token is put into two organization-wide secrets:
+the workflow secret WORKFLOW_PAT and also the Dependabot secret WORKFLOW_PAT.
+
+The PAT has been configured with `workflow` and `admin:org.read:org`
+permissions.
+
+To rotate the PAT, log in to leeroy-travis, go to Settings ... Developer
+settings ... Personal access tokens ... Tokens (classic). Select the
+"org WORKFLOW_PAT" token, then "Regenerate token". Set the expiration to
+"never" and save, then copy the value of the token. Then log in as an
+account that is an admin of the IronCore Labs GitHub organization, go to
+IronCore ... Settings ... Secrets and variables ... Actions". Edit the
+"WORKFLOW_PAT" secret, click "enter a new value", and paste the PAT value.
+
+Repeat this process for the "Dependabot" secrets, updating "WORKFLOW_PAT".
+
 ## Docker Hub
 
 We have a personal access token (PAT) that we use to authenticate to Docker Hub. Its purpose is to bypass rate limits on pulls
