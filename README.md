@@ -67,7 +67,7 @@ account that is an admin of the IronCore Labs GitHub organization, go to
 IronCore ... Settings ... Secrets and variables ... Actions". Edit the
 "WORKFLOW_PAT" secret, click "enter a new value", and paste the PAT value.
 
-Repeat this process for the "Dependbot" secrets, updating "WORKFLOW_PAT".
+Repeat this process for the "Dependabot" secrets, updating "WORKFLOW_PAT".
 
 ## Docker Hub
 
