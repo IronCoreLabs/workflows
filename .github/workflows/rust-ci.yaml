@@ -78,7 +78,8 @@ on:
 jobs:
   # Assigns some variables, because GHA doesn't expand variables in inputs.*.default.
   vars:
-    runs-on: buildjet-2vcpu-ubuntu-2204
+    # swap to buildjet version once available
+    runs-on: ubuntu-24.04
     outputs:
       rust_root: ${{ steps.rust_root.outputs.rust_root }}
     steps:
@@ -92,7 +93,7 @@ jobs:
           echo "rust_root=$root" >> $GITHUB_OUTPUT
 
   cargo-test:
-    runs-on: buildjet-2vcpu-ubuntu-2204
+    runs-on: ubuntu-24.04
     needs: vars
     env:
       SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET }}
@@ -130,7 +131,7 @@ jobs:
           crate: sccache
           accesskey: AKIAU2WBY6VDTC563V7G
           secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
-          os: buildjet-2vcpu-ubuntu-2204
+          os: ubuntu-24.04
           version: latest
       - name: Setup sccache env variables
         if: env.SCCACHE_AWS_SECRET != ''
@@ -158,7 +159,7 @@ jobs:
         run: sccache -s
 
   coverage:
-    runs-on: buildjet-2vcpu-ubuntu-2204
+    runs-on: ubuntu-24.04
     needs: vars
     env:
       SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET }}
@@ -186,7 +187,7 @@ jobs:
           crate: sccache
           accesskey: AKIAU2WBY6VDTC563V7G
           secretkey: ${{ env.TOOL_CACHE_SECRET_KEY }}
-          os: buildjet-2vcpu-ubuntu-2204
+          os: ubuntu-24.04
           version: latest
       - name: Setup sccache env variables
         if: env.SCCACHE_AWS_SECRET != ''
@@ -228,7 +229,7 @@ jobs:
           minimum_coverage: ${{ inputs.minimum_coverage }}
 
   format:
-    runs-on: buildjet-2vcpu-ubuntu-2204
+    runs-on: ubuntu-24.04
     needs: vars
     steps:
       - name: Configure git ssh access
@@ -250,7 +251,7 @@ jobs:
           crate: cargo-sort
           accesskey: AKIAU2WBY6VDTC563V7G
           secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
-          os: buildjet-2vcpu-ubuntu-2204
+          os: ubuntu-24.04
           version: latest
       - run: |
           if grep -q '\[workspace]' Cargo.toml ; then
@@ -265,7 +266,7 @@ jobs:
 
   clippy:
     name: Clippy
-    runs-on: buildjet-2vcpu-ubuntu-2204
+    runs-on: ubuntu-24.04
     needs: vars
     if: inputs.run_clippy
     steps:
