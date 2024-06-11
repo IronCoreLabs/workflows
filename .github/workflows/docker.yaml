@@ -76,7 +76,7 @@ on:
 
 jobs:
   image:
-    if: github.actor != 'dependabot[bot]' || github.event.label.name == 'docker'
+    if: github.actor != 'dependabot[bot]' || contains(github.event.pull_request.labels.*.name, 'docker')
     runs-on: ${{ inputs.other_jobs_runs_on }}
     outputs:
       images: ${{ steps.images.outputs.images }}
