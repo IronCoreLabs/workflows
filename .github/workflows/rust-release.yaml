@@ -1,0 +1,29 @@
+# Release to crates.io for Rust projects.
+
+name: Rust Release
+on:
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      CRATES_IO_API_KEY:
+        description: "API key to use when publishing to crates.io"
+        required: true
+
+jobs:
+  cargo-release:
+    env:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_API_KEY }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo package
+      - name: Dry run the publish
+        if: inputs.dry_run
+        run: cargo publish --dry-run
+      - name: Publish!
+        if: ${{ !inputs.dry_run }}
+        run: cargo publish
