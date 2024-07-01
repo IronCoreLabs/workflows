@@ -58,7 +58,7 @@ jobs:
           apps: sbt
       - name: Download additional binary
         if: ${{ inputs.download_release_binary_repo != '' && inputs.download_release_binary_name != '' }}
-        uses: robinraju/release-downloader@v1.10
+        uses: robinraju/release-downloader@v1.11
         with:
           repository: ${{ inputs.download_release_binary_repo }}
           fileName: ${{ inputs.download_release_binary_name }}
