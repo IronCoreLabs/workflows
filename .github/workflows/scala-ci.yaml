@@ -32,6 +32,11 @@ on:
         type: string
         required: false
         default: ""
+      docker_version:
+        description: Install a specific Docker version. Useful as a workaround for a `docker-it-scala` bug with Docker v26.
+        type: string
+        required: false
+        default: ""
     secrets:
       MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID:
         description: "AWS access key to access our s3 bucket for scala libs."
@@ -63,6 +68,11 @@ jobs:
           repository: ${{ inputs.download_release_binary_repo }}
           fileName: ${{ inputs.download_release_binary_name }}
           latest: true
+      - name: Install specific Docker version
+        if: inputs.docker_version != ''
+        uses: docker-practice/actions-setup-docker@v1
+        with:
+          docker_version: ${{ inputs.docker_version }}
       - name: Build and test
         env:
           MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
