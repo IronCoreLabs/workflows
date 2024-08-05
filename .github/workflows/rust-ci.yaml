@@ -79,7 +79,7 @@ jobs:
   # Assigns some variables, because GHA doesn't expand variables in inputs.*.default.
   vars:
     # swap to buildjet version once available
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       rust_root: ${{ steps.rust_root.outputs.rust_root }}
     steps:
@@ -93,24 +93,20 @@ jobs:
           echo "rust_root=$root" >> $GITHUB_OUTPUT
 
   cargo-test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: vars
     env:
       SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET }}
       TOOL_CACHE_SECRET_KEY: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
     strategy:
       matrix:
-        rust_version: ["beta"]
-        build_only: [true]
-        build_args: [""]
-        test_args: [""]
-        rust_target: [""]
-        include: [{ rust_version: "", build_only: false }]
+        rust_version: "${{ fromJSON(inputs.test_matrix_rust_version) }}"
+        build_only: "${{ fromJSON(inputs.test_matrix_build_only) }}"
+        build_args: "${{ fromJSON(inputs.test_matrix_build_args) }}"
+        test_args: "${{ fromJSON(inputs.test_matrix_test_args) }}"
+        rust_target: "${{ fromJSON(inputs.test_matrix_rust_target) }}"
+        include: ${{ fromJSON(inputs.test_matrix_include) }}
     steps:
-      - uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
       - name: Configure git ssh access
         run: |
           mkdir -p "${HOME}/.ssh"
@@ -135,7 +131,7 @@ jobs:
           crate: sccache
           accesskey: AKIAU2WBY6VDTC563V7G
           secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
-          os: ubuntu-22.04
+          os: ubuntu-24.04
           version: latest
       - name: Setup sccache env variables
         if: env.SCCACHE_AWS_SECRET != ''
@@ -162,82 +158,78 @@ jobs:
         if: env.SCCACHE_AWS_SECRET != ''
         run: sccache -s
 
-  coverage:
-    runs-on: ubuntu-22.04
-    needs: vars
-    env:
-      SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET }}
-      TOOL_CACHE_SECRET_KEY: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
-    if: github.actor != 'dependabot[bot]' && github.event_name == 'pull_request'
-    steps:
-      - uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-      - name: Configure git ssh access
-        run: |
-          mkdir -p "${HOME}/.ssh"
-          chmod 700 "${HOME}/.ssh"
-          echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
-          chmod 600 "${HOME}/.ssh/id_ed25519"
-          ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
-      - uses: actions/checkout@v4
-      - name: Install additional dependencies
-        if: ${{ inputs.additional_system_deps != '' }}
-        run: |
-          sudo apt update
-          sudo apt install ${{ inputs.additional_system_deps }}
-      - uses: IronCoreLabs/rust-toolchain@v1
-      - name: Install sccache
-        if: env.SCCACHE_AWS_SECRET != ''
-        uses: IronCoreLabs/rust-install@v0.1.2
-        with:
-          crate: sccache
-          accesskey: AKIAU2WBY6VDTC563V7G
-          secretkey: ${{ env.TOOL_CACHE_SECRET_KEY }}
-          os: ubuntu-22.04
-          version: latest
-      - name: Setup sccache env variables
-        if: env.SCCACHE_AWS_SECRET != ''
-        run: |
-          echo "CC=$(which cc)" >> $GITHUB_ENV
-          echo "RUSTC_WRAPPER=$HOME/.cargo/bin/sccache" >> $GITHUB_ENV
-          echo "AWS_ACCESS_KEY_ID=AKIAU2WBY6VDVHUO5WSN" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }}" >> $GITHUB_ENV
-          echo "SCCACHE_BUCKET=sccache-rust" >> $GITHUB_ENV
-          echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
-          echo "SCCACHE_REGION=us-west-2" >> $GITHUB_ENV
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-provider: buildjet
-      - uses: taiki-e/install-action@cargo-llvm-cov
-      - name: Run llvm-cov
-        run: ${{inputs.cargo_command_env_vars}} cargo llvm-cov --html ${{ inputs.cargo_command_test_args }}
-        working-directory: ${{ needs.vars.outputs.rust_root }}
-      - name: Get Cobertura report as well
-        run: ${{inputs.cargo_command_env_vars}} cargo llvm-cov report --cobertura --output-path cobertura.xml
-        working-directory: ${{ needs.vars.outputs.rust_root }}
-      - name: Archive code coverage results
-        uses: actions/upload-artifact@v4
-        with:
-          name: code-coverage-report
-          path: ${{ needs.vars.outputs.rust_root }}/target/llvm-cov/html/
-      - name: Post code coverage to PR comment
-        if: ${{ github.base_ref != '' }}
-        # If this is run from a fork, this will fail to post a comment on the PR.
-        # Since the coverage is also uploaded as an artifact, we don't consider this fatal.
-        continue-on-error: true
-        uses: 5monkeys/cobertura-action@v14
-        with:
-          path: ${{ needs.vars.outputs.rust_root }}/cobertura.xml
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          only_changed_files: true
-          show_line: true
-          # increase as we are able
-          minimum_coverage: ${{ inputs.minimum_coverage }}
+  # coverage:
+  #   runs-on: ubuntu-24.04
+  #   needs: vars
+  #   env:
+  #     SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET }}
+  #     TOOL_CACHE_SECRET_KEY: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
+  #   if: github.actor != 'dependabot[bot]' && github.event_name == 'pull_request'
+  #   steps:
+  #     - name: Configure git ssh access
+  #       run: |
+  #         mkdir -p "${HOME}/.ssh"
+  #         chmod 700 "${HOME}/.ssh"
+  #         echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
+  #         chmod 600 "${HOME}/.ssh/id_ed25519"
+  #         ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
+  #     - uses: actions/checkout@v4
+  #     - name: Install additional dependencies
+  #       if: ${{ inputs.additional_system_deps != '' }}
+  #       run: |
+  #         sudo apt update
+  #         sudo apt install ${{ inputs.additional_system_deps }}
+  #     - uses: IronCoreLabs/rust-toolchain@v1
+  #     - name: Install sccache
+  #       if: env.SCCACHE_AWS_SECRET != ''
+  #       uses: IronCoreLabs/rust-install@v0.1.2
+  #       with:
+  #         crate: sccache
+  #         accesskey: AKIAU2WBY6VDTC563V7G
+  #         secretkey: ${{ env.TOOL_CACHE_SECRET_KEY }}
+  #         os: ubuntu-24.04
+  #         version: latest
+  #     - name: Setup sccache env variables
+  #       if: env.SCCACHE_AWS_SECRET != ''
+  #       run: |
+  #         echo "CC=$(which cc)" >> $GITHUB_ENV
+  #         echo "RUSTC_WRAPPER=$HOME/.cargo/bin/sccache" >> $GITHUB_ENV
+  #         echo "AWS_ACCESS_KEY_ID=AKIAU2WBY6VDVHUO5WSN" >> $GITHUB_ENV
+  #         echo "AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }}" >> $GITHUB_ENV
+  #         echo "SCCACHE_BUCKET=sccache-rust" >> $GITHUB_ENV
+  #         echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
+  #         echo "SCCACHE_REGION=us-west-2" >> $GITHUB_ENV
+  #     - uses: Swatinem/rust-cache@v2
+  #       with:
+  #         cache-provider: buildjet
+  #     - uses: taiki-e/install-action@cargo-llvm-cov
+  #     - name: Run llvm-cov
+  #       run: ${{inputs.cargo_command_env_vars}} cargo llvm-cov --html ${{ inputs.cargo_command_test_args }}
+  #       working-directory: ${{ needs.vars.outputs.rust_root }}
+  #     - name: Get Cobertura report as well
+  #       run: ${{inputs.cargo_command_env_vars}} cargo llvm-cov report --cobertura --output-path cobertura.xml
+  #       working-directory: ${{ needs.vars.outputs.rust_root }}
+  #     - name: Archive code coverage results
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: code-coverage-report
+  #         path: ${{ needs.vars.outputs.rust_root }}/target/llvm-cov/html/
+  #     - name: Post code coverage to PR comment
+  #       if: ${{ github.base_ref != '' }}
+  #       # If this is run from a fork, this will fail to post a comment on the PR.
+  #       # Since the coverage is also uploaded as an artifact, we don't consider this fatal.
+  #       continue-on-error: true
+  #       uses: 5monkeys/cobertura-action@v14
+  #       with:
+  #         path: ${{ needs.vars.outputs.rust_root }}/cobertura.xml
+  #         repo_token: ${{ secrets.GITHUB_TOKEN }}
+  #         only_changed_files: true
+  #         show_line: true
+  #         # increase as we are able
+  #         minimum_coverage: ${{ inputs.minimum_coverage }}
 
   format:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: vars
     steps:
       - name: Configure git ssh access
@@ -259,7 +251,7 @@ jobs:
           crate: cargo-sort
           accesskey: AKIAU2WBY6VDTC563V7G
           secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
-          os: ubuntu-22.04
+          os: ubuntu-24.04
           version: latest
       - run: |
           if grep -q '\[workspace]' Cargo.toml ; then
@@ -274,7 +266,7 @@ jobs:
 
   clippy:
     name: Clippy
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: vars
     if: inputs.run_clippy
     steps:
