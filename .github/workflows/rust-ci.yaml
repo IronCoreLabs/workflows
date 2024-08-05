@@ -79,7 +79,7 @@ jobs:
   # Assigns some variables, because GHA doesn't expand variables in inputs.*.default.
   vars:
     # swap to buildjet version once available
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     outputs:
       rust_root: ${{ steps.rust_root.outputs.rust_root }}
     steps:
@@ -93,20 +93,24 @@ jobs:
           echo "rust_root=$root" >> $GITHUB_OUTPUT
 
   cargo-test:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     needs: vars
     env:
       SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET }}
       TOOL_CACHE_SECRET_KEY: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
     strategy:
       matrix:
-        rust_version: "${{ fromJSON(inputs.test_matrix_rust_version) }}"
-        build_only: "${{ fromJSON(inputs.test_matrix_build_only) }}"
-        build_args: "${{ fromJSON(inputs.test_matrix_build_args) }}"
-        test_args: "${{ fromJSON(inputs.test_matrix_test_args) }}"
-        rust_target: "${{ fromJSON(inputs.test_matrix_rust_target) }}"
-        include: ${{ fromJSON(inputs.test_matrix_include) }}
+        rust_version: ["beta"]
+        build_only: [true]
+        build_args: [""]
+        test_args: [""]
+        rust_target: [""]
+        include: [{ rust_version: "", build_only: false }]
     steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
       - name: Configure git ssh access
         run: |
           mkdir -p "${HOME}/.ssh"
@@ -131,7 +135,7 @@ jobs:
           crate: sccache
           accesskey: AKIAU2WBY6VDTC563V7G
           secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
-          os: ubuntu-24.04
+          os: ubuntu-22.04
           version: latest
       - name: Setup sccache env variables
         if: env.SCCACHE_AWS_SECRET != ''
@@ -159,13 +163,17 @@ jobs:
         run: sccache -s
 
   coverage:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     needs: vars
     env:
       SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET }}
       TOOL_CACHE_SECRET_KEY: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
     if: github.actor != 'dependabot[bot]' && github.event_name == 'pull_request'
     steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
       - name: Configure git ssh access
         run: |
           mkdir -p "${HOME}/.ssh"
@@ -187,7 +195,7 @@ jobs:
           crate: sccache
           accesskey: AKIAU2WBY6VDTC563V7G
           secretkey: ${{ env.TOOL_CACHE_SECRET_KEY }}
-          os: ubuntu-24.04
+          os: ubuntu-22.04
           version: latest
       - name: Setup sccache env variables
         if: env.SCCACHE_AWS_SECRET != ''
@@ -229,7 +237,7 @@ jobs:
           minimum_coverage: ${{ inputs.minimum_coverage }}
 
   format:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     needs: vars
     steps:
       - name: Configure git ssh access
@@ -251,7 +259,7 @@ jobs:
           crate: cargo-sort
           accesskey: AKIAU2WBY6VDTC563V7G
           secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
-          os: ubuntu-24.04
+          os: ubuntu-22.04
           version: latest
       - run: |
           if grep -q '\[workspace]' Cargo.toml ; then
@@ -266,7 +274,7 @@ jobs:
 
   clippy:
     name: Clippy
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     needs: vars
     if: inputs.run_clippy
     steps:
