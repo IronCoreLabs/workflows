@@ -145,7 +145,7 @@ jobs:
           echo "SCCACHE_REGION=us-west-2" >> $GITHUB_ENV
       - uses: Swatinem/rust-cache@v2
         with:
-          cache-provider: buildjet
+          cache-provider: github
       - name: Set Rust target
         if: ${{ matrix.rust_target != '' }}
         run: echo "TARGET_FLAGS=--target ${{ matrix.rust_target }}" >> $GITHUB_ENV
@@ -201,7 +201,7 @@ jobs:
           echo "SCCACHE_REGION=us-west-2" >> $GITHUB_ENV
       - uses: Swatinem/rust-cache@v2
         with:
-          cache-provider: buildjet
+          cache-provider: github
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Run llvm-cov
         run: ${{inputs.cargo_command_env_vars}} cargo llvm-cov --html ${{ inputs.cargo_command_test_args }}
