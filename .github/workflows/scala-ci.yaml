@@ -70,7 +70,7 @@ jobs:
           latest: true
       - name: Install specific Docker version
         if: inputs.docker_version != ''
-        uses: docker-practice/actions-setup-docker@ccc771627519a0dc44b99c63f3ccf5fab1b1b9b8
+        uses: docker-practice/actions-setup-docker@26fccec59edc4e7045508c01b8123ed929220ed0
         with:
           docker_version: ${{ inputs.docker_version }}
       - name: Build and test
