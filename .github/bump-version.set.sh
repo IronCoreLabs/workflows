@@ -44,7 +44,7 @@ for FILE in ${VERSFILES} ; do
         ;;
 
     Cargo.toml)
-        sed 's/^version = ".*"$/version = "'"${NEWVERS}"'"/' "${FILE}" > "${FILE}.tmp"
+        sed '0,/version/s/^version = ".*"$/version = "'"${NEWVERS}"'"/' "${FILE}" > "${FILE}.tmp"
         mv "${FILE}.tmp" "${FILE}"
 
         # If there's a Cargo.lock, update it also.
