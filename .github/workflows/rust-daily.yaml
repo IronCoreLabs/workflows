@@ -110,9 +110,9 @@ jobs:
         with:
           cache-provider: buildjet
       - if: ${{ matrix.rust_target == '' }}
-        run: cargo check --all-features
+        run: cargo check --all-features --all-targets
       - if: ${{ matrix.rust_target != '' }}
-        run: cargo check --target=${{ matrix.rust_target }} --all-features
+        run: cargo check --target=${{ matrix.rust_target }} --all-features --all-targets
       - name: Print sccache stats
         if: env.SCCACHE_AWS_SECRET != ''
         run: sccache -s
