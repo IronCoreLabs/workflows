@@ -57,6 +57,9 @@ jobs:
       # This is broken and should be fixed by https://github.com/coursier/cache-action/pull/675.
       # - name: Restore caches
       #   uses: coursier/cache-action@v6
+      # This should be removed as well when above is fixed
+      - name: Delete Coursier and Ivy2 caches
+        run: rm -rf ~/.cache/coursier ~/.ivy2/cache
       - name: Setup Scala
         uses: coursier/setup-action@v1
         with:
