@@ -54,8 +54,9 @@ jobs:
         run: |
           sudo apt update
           sudo apt install ${{ inputs.additional_system_deps }}
-      - name: Restore caches
-        uses: coursier/cache-action@v6
+      # This is broken and should be fixed by https://github.com/coursier/cache-action/pull/675.
+      # - name: Restore caches
+      #   uses: coursier/cache-action@v6
       - name: Setup Scala
         uses: coursier/setup-action@v1
         with:
