@@ -170,6 +170,8 @@ jobs:
     runs-on: ${{ matrix.runs_on }}
     env:
       DOCKER_BUILDKIT: 1
+      MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ vars.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
+      MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
     strategy:
       matrix:
         runs_on: ${{ fromJson(needs.image.outputs.runners) }}
