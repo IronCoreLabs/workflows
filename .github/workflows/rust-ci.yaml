@@ -71,9 +71,6 @@ on:
       TOOL_CACHE_SECRET_KEY:
         description: "AWS secret key to access our Rust tool cache S3 bucket."
         required: false
-      SCCACHE_AWS_SECRET:
-        description: "AWS secret key to access our sccache S3 bucket."
-        required: false
 
 jobs:
   # Assigns some variables, because GHA doesn't expand variables in inputs.*.default.
@@ -96,7 +93,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: vars
     env:
-      SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET }}
+      SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET_ACCESS_KEY }}
       TOOL_CACHE_SECRET_KEY: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
     strategy:
       matrix:
@@ -138,7 +135,7 @@ jobs:
         run: |
           echo "CC=$(which cc)" >> $GITHUB_ENV
           echo "RUSTC_WRAPPER=$HOME/.cargo/bin/sccache" >> $GITHUB_ENV
-          echo "AWS_ACCESS_KEY_ID=AKIAU2WBY6VDVHUO5WSN" >> $GITHUB_ENV
+          echo "AWS_ACCESS_KEY_ID=${{ vars.SCCACHE_AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=${{ env.SCCACHE_AWS_SECRET }}" >> $GITHUB_ENV
           echo "SCCACHE_BUCKET=sccache-rust" >> $GITHUB_ENV
           echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
@@ -162,7 +159,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: vars
     env:
-      SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET }}
+      SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET_ACCESS_KEY }}
       TOOL_CACHE_SECRET_KEY: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
     if: github.actor != 'dependabot[bot]' && github.event_name == 'pull_request'
     steps:
@@ -194,8 +191,8 @@ jobs:
         run: |
           echo "CC=$(which cc)" >> $GITHUB_ENV
           echo "RUSTC_WRAPPER=$HOME/.cargo/bin/sccache" >> $GITHUB_ENV
-          echo "AWS_ACCESS_KEY_ID=AKIAU2WBY6VDVHUO5WSN" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET }}" >> $GITHUB_ENV
+          echo "AWS_ACCESS_KEY_ID=${{ vars.SCCACHE_AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ env.SCCACHE_AWS_SECRET }}" >> $GITHUB_ENV
           echo "SCCACHE_BUCKET=sccache-rust" >> $GITHUB_ENV
           echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
           echo "SCCACHE_REGION=us-west-2" >> $GITHUB_ENV
