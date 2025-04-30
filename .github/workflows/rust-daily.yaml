@@ -35,9 +35,6 @@ on:
       TOOL_CACHE_SECRET_KEY:
         description: "AWS secret key to access our Rust tool cache S3 bucket."
         required: false
-      SCCACHE_AWS_SECRET:
-        description: "AWS secret key to access our sccache S3 bucket."
-        required: false
 
 jobs:
   # Assigns some variables, because GHA doesn't expand variables in inputs.*.default.
