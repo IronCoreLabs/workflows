@@ -6,44 +6,38 @@ concurrency:
   cancel-in-progress: true
 on:
   workflow_call:
-    secrets:
-      MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID:
-        description: "AWS access key to access our s3 bucket for scala libs."
-        required: true
-      MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY:
-        description: "AWS secret key to access our s3 bucket for scala libs."
-        required: true
+
 jobs:
   test:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
-    - name: Set file_name output var
-      id: file_name
-      run: echo "file_name=$(date +%B)-${GITHUB_REPOSITORY#*/}-cve.html" >> $GITHUB_OUTPUT
-    - name: Set run_url output var
-      id: run_url
-      run: echo "run_url=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_OUTPUT
-    - uses: coursier/setup-action@v1
-      with:
-        jvm: adopt:11
-        apps: sbt
-    - name: Run CVE check
-      env:
-        MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
-        MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
-      run: sbt -Dhttps.protocols=TLSv1.2,TLSv1.1,TLSv1 dependencyCheckAggregate
-    - name: Move/rename file
-      run: mv ./target/scala-2.13/dependency-check-report.html ${{ steps.file_name.outputs.file_name }}
-    - uses: actions/upload-artifact@v4
-      with:
-        name: ${{ steps.file_name.outputs.file_name }}
-        path: ${{ steps.file_name.outputs.file_name }}
-    - run: |
-        curl -Ss -X POST \
-        -H "Authorization: token ${{ secrets.WORKFLOW_PAT }}" \
-        -H "Accept: application/vnd.github.v3+json" \
-        -d "{\"title\": \"CVE Check $(date +"%B %Y")\",
-          \"body\": \"Output is attached as an artifact to ${{ steps.run_url.outputs.run_url }}. Please attach it to this issue and assign a point value for remediation, if necessary.\"
-          }" \
-        https://api.github.com/repos/${{ github.repository }}/issues
+      - uses: actions/checkout@v4
+      - name: Set file_name output var
+        id: file_name
+        run: echo "file_name=$(date +%B)-${GITHUB_REPOSITORY#*/}-cve.html" >> $GITHUB_OUTPUT
+      - name: Set run_url output var
+        id: run_url
+        run: echo "run_url=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_OUTPUT
+      - uses: coursier/setup-action@v1
+        with:
+          jvm: adopt:11
+          apps: sbt
+      - name: Run CVE check
+        env:
+          MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ vars.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
+          MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
+        run: sbt -Dhttps.protocols=TLSv1.2,TLSv1.1,TLSv1 dependencyCheckAggregate
+      - name: Move/rename file
+        run: mv ./target/scala-2.13/dependency-check-report.html ${{ steps.file_name.outputs.file_name }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.file_name.outputs.file_name }}
+          path: ${{ steps.file_name.outputs.file_name }}
+      - run: |
+          curl -Ss -X POST \
+          -H "Authorization: token ${{ secrets.WORKFLOW_PAT }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          -d "{\"title\": \"CVE Check $(date +"%B %Y")\",
+            \"body\": \"Output is attached as an artifact to ${{ steps.run_url.outputs.run_url }}. Please attach it to this issue and assign a point value for remediation, if necessary.\"
+            }" \
+          https://api.github.com/repos/${{ github.repository }}/issues

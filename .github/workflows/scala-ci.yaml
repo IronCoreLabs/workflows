@@ -37,13 +37,7 @@ on:
         type: string
         required: false
         default: ""
-    secrets:
-      MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID:
-        description: "AWS access key to access our s3 bucket for scala libs."
-        required: true
-      MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY:
-        description: "AWS secret key to access our s3 bucket for scala libs."
-        required: true
+
 jobs:
   test:
     runs-on: ubuntu-22.04
@@ -79,7 +73,7 @@ jobs:
           docker_version: ${{ inputs.docker_version }}
       - name: Build and test
         env:
-          MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
+          MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ vars.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
           MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
           LD_LIBRARY_PATH: "./" # If a release was downloaded, it would be here. If not, no harm done.
         # See https://github.com/IronCoreLabs/backup-kafka/issues/102, this -D should be removed once not needed
