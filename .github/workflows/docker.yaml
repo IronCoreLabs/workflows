@@ -221,12 +221,16 @@ jobs:
           sudo freshclam
           sudo systemctl start clamav-freshclam
       - name: Decrypt files
+        if: inputs.additional_decryption_files != ''
         uses: IronCoreLabs/ironhide-actions/decrypt@v3
         with:
           keys: ${{ secrets.IRONHIDE_KEYS }}
-          input: .github/gcloud-auth.json.iron ${{ inputs.additional_decryption_files }}
+          input: ${{ inputs.additional_decryption_files }}
       - name: Configure gcloud
         run: |
+          cat > .github/gcloud-auth.json <<EOF
+          ${{ secrets.GCLOUD_AUTH }}
+          EOF
           gcloud auth activate-service-account --key-file .github/gcloud-auth.json
           gcloud auth configure-docker --quiet
       - name: Get canonical image name
@@ -312,13 +316,11 @@ jobs:
         with:
           # Either the workflow_dispatch ref, or the prerelease tag, whichever is set.
           ref: ${{ github.event.inputs.ref }}${{ github.event.release.tag_name }}
-      - name: Decrypt gcloud credentials
-        uses: IronCoreLabs/ironhide-actions/decrypt@v3
-        with:
-          keys: ${{ secrets.IRONHIDE_KEYS }}
-          input: .github/gcloud-auth.json.iron
       - name: Configure gcloud
         run: |
+          cat > .github/gcloud-auth.json <<EOF
+          ${{ secrets.GCLOUD_AUTH }}
+          EOF
           gcloud auth activate-service-account --key-file .github/gcloud-auth.json
           gcloud auth configure-docker --quiet
       - name: Get canonical image name
