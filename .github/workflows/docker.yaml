@@ -228,7 +228,7 @@ jobs:
           input: ${{ inputs.additional_decryption_files }}
       - name: Configure gcloud
         run: |
-          echo "${{ secrets.GCLOUD_AUTH }}" > .github/gcloud-auth.json
+          printf '%s' "${{ secrets.GCLOUD_AUTH }}" > .github/gcloud-auth.json
           gcloud auth activate-service-account --key-file .github/gcloud-auth.json
           gcloud auth configure-docker --quiet
       - name: Get canonical image name
@@ -316,7 +316,7 @@ jobs:
           ref: ${{ github.event.inputs.ref }}${{ github.event.release.tag_name }}
       - name: Configure gcloud
         run: |
-          echo "${{ secrets.GCLOUD_AUTH }}" > .github/gcloud-auth.json
+          printf '%s' "${{ secrets.GCLOUD_AUTH }}" > .github/gcloud-auth.json
           gcloud auth activate-service-account --key-file .github/gcloud-auth.json
           gcloud auth configure-docker --quiet
       - name: Get canonical image name
