@@ -15,6 +15,11 @@ on:
         description: Image base name, without tag.
         type: string
         required: true
+      additional_release_image_name:
+        description: An optional second image base name. If provided, all tags will be applied and pushed here as well.
+        type: string
+        required: false
+        default: ""
       build_command:
         description: Command to run to build docker image. `${DOCKER_FULL_NAME}` should be used as the tag name.
         type: string
@@ -137,14 +142,23 @@ jobs:
       - name: Output docker image identifiers
         id: images
         run: |
-          for T in ${{ steps.tag.outputs.tags }} ; do
-            echo -n "${{ steps.name.outputs.name }}:${T} "
-          done | \
-          # Eat the trailing space.
-          sed 's/ $//' | tee images
-          echo "Docker tags: '${{ steps.tag.outputs.tags }}'"
-          echo "All images: '$(cat images)'"
+          PRIMARY="${{ steps.name.outputs.name }}"
+          TAGS="${{ steps.tag.outputs.tags }}"
+          echo "Docker tags: '${TAGS}'"
+
+          for T in $TAGS ; do
+            echo -n "${PRIMARY}:${T} "
+          done | sed 's/ $//' | tee images
           echo "images=$(cat images)" >> "$GITHUB_OUTPUT"
+
+          if [ -n "${{ inputs.additional_release_image_name }}" ]; then
+            for T in $TAGS ; do
+                echo -n "${{ inputs.additional_release_image_name }}:${T} "
+            done | sed 's/ $//' | tee additional_images
+            echo "additional_images=$(cat additional_images)" >> "$GITHUB_OUTPUT"
+          else
+            echo "additional_images=" >> "$GITHUB_OUTPUT"
+          fi
       - name: Output arch build matrix
         id: archs
         run: |
@@ -272,6 +286,18 @@ jobs:
           clamscan /tmp/docker.tar
       - name: Push it!
         run: docker push "${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
+      - name: Tag and push additional image
+        if: inputs.additional_release_image_name != ''
+        run: |
+          SRC="${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
+          if [[ "$SRC" != "${{ inputs.image_name }}:"* ]]; then
+              echo "Error: Canonical image name $SRC does not start with ${{ inputs.image_name }}."
+          exit 1
+          fi
+          # replace the base image name with the additional image name
+          DST=$(echo "$SRC" | sed "s#^${{ inputs.image_name }}:#${{ inputs.additional_release_image_name }}:#")
+          docker tag "$SRC" "$DST"
+          docker push "$DST"
       - name: Container hash
         id: container-hash
         run: |
@@ -329,30 +355,52 @@ jobs:
       - name: Create and push manifest
         run: |
           set -x
-          IMGS=$(echo ${{ inputs.archs }} | tr ' ' '\n' | sed 's%^%${{ steps.name.outputs.canonical }}-%' | tr '\n' ' ')
-          # Sometimes GCR gives random errors. Let's try a few times before giving up.
-          for RETRY in $(seq 10) ; do
-            for ARCH in ${{ inputs.archs }} ; do
-              if ! docker pull "${{ steps.name.outputs.canonical }}-${ARCH}" ; then
-                echo "Attempt #${RETRY} failed."
-                sleep 10
-                # Continue the outer loop, not the inner one.
-                continue 2
+          # Will look like "gcr.io/ironcore-dev-1/ironcore-id-server:1.2.6"
+          CANONICAL="${{ steps.name.outputs.canonical }}"
+          # Will look like "gcr.io/ironcore-dev-1/ironcore-id-server:1.2.6-amd64 gcr.io/ironcore-dev-1/ironcore-id-server:1.2.6-arm64"
+          IMGS=$(echo ${{ inputs.archs }} | tr ' ' '\n' | sed "s%^%$CANONICAL-%" | tr '\n' ' ')
+          test_manifest_creation() {
+            local target="$1"
+            for RETRY in $(seq 10); do
+              echo "Attempt #$RETRY to pull images and create manifest for $target"
+              for ARCH in ${{ inputs.archs }} ; do
+                if ! docker pull "${CANONICAL}-${ARCH}" ; then
+                  echo "Attempt #${RETRY} failed."
+                  sleep 10
+                  # Continue the outer loop, not the inner one.
+                  continue 2
+                fi
+              done
+              if docker manifest create "$target" ${IMGS} ; then
+                # We'll re-create this below, in the loop.
+                docker manifest rm "$target" || true
+                return 0
               fi
+              echo "Attempt #${RETRY} failed."
+              sleep 10
             done
-            if docker manifest create "${{ steps.name.outputs.canonical }}" ${IMGS} ; then
-              # We'll re-create this below, in the loop.
-              docker manifest rm "${{ steps.name.outputs.canonical }}"
-              break
-            fi
-            echo "Attempt #${RETRY} failed."
-            sleep 10
-          done
+            echo "ERROR: Unable to create manifest for $target after 10 attempts"
+            return 1
+          }
+
+          test_manifest_creation "$CANONICAL"
           # If that worked, we should be able to create each of the aliases (e.g. 4.12.0, 4.12, 4).
           for IMAGE in ${{ needs.image.outputs.images }} ; do
             docker manifest create "$IMAGE" ${IMGS}
             docker manifest push "$IMAGE"
           done
+
+          # Do the same for any additional manifests
+          if [ -n "${{ inputs.additional_release_image_name }}" ] ; then
+            CANONICAL=$(echo "$CANONICAL" | sed "s#^${{ inputs.image_name }}#${{ inputs.additional_release_image_name }}#")
+            test_manifest_creation "$CANONICAL"
+            IMGS=$(echo ${{ inputs.archs }} | tr ' ' '\n' | sed "s%^%$CANONICAL-%" | tr '\n' ' ')
+            NEEDS_IMAGES=$(echo "${{needs.image.outputs.images}}" | sed "s#^${{ inputs.image_name }}:#${{ inputs.additional_release_image_name }}:#")
+            for IMAGE in $NEEDS_IMAGES ; do
+              docker manifest create "$IMAGE" ${IMGS}
+              docker manifest push "$IMAGE"
+            done
+          fi
       # This triggers the Deploy workflow's `release: released`
       - name: Mark GitHub release as not prerelease
         if: github.event.release != null && inputs.update_github_release
