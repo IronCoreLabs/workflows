@@ -144,7 +144,7 @@ jobs:
         run: |
           PRIMARY="${{ steps.name.outputs.name }}"
           TAGS="${{ steps.tag.outputs.tags }}"
-          echo "Docker tags: '${TAGS}'"
+          echo "Docker tags: ${TAGS}"
 
           for T in $TAGS ; do
             echo -n "${PRIMARY}:${T} "
@@ -247,6 +247,7 @@ jobs:
           EOF
           gcloud auth activate-service-account --key-file .github/gcloud-auth.json
           gcloud auth configure-docker --quiet
+          gcloud auth configure-docker us-docker.pkg.dev --quiet
       - name: Get canonical image name
         id: name
         run: |
@@ -349,6 +350,7 @@ jobs:
           EOF
           gcloud auth activate-service-account --key-file .github/gcloud-auth.json
           gcloud auth configure-docker --quiet
+          gcloud auth configure-docker us-docker.pkg.dev --quiet
       - name: Get canonical image name
         id: name
         run: echo "canonical=$(echo ${{ needs.image.outputs.images }} | sed 's/ .*//')" >> "$GITHUB_OUTPUT"
