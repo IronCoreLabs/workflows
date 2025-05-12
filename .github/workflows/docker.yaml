@@ -88,6 +88,7 @@ jobs:
       tags: ${{ steps.tag.outputs.tags }}
       longtag: ${{ steps.tag.outputs.longest }}
       runners: ${{ steps.archs.outputs.runners }}
+      prerelease: ${{ steps.name.outputs.prerelease }}
     steps:
       - name: Set docker image tags
         id: tag
@@ -132,33 +133,27 @@ jobs:
         id: name
         run: |
           DOCKER_IMAGE="${{ inputs.image_name }}"
+          PRERELEASE=false
           # If any tags look like prereleases, then we'll push our final image to our internal registry, not the public one.
           for TAG in ${{ steps.tag.outputs.tags }} ; do
             if ! [[ ${TAG} =~ ^[0-9.]*$ ]] ; then
               DOCKER_IMAGE="$(echo ${DOCKER_IMAGE} | sed 's/ironcore-images/ironcore-dev-1/')"
+              PRERELEASE=true
             fi
           done
           echo "name=${DOCKER_IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
       - name: Output docker image identifiers
         id: images
         run: |
-          PRIMARY="${{ steps.name.outputs.name }}"
-          TAGS="${{ steps.tag.outputs.tags }}"
-          echo "Docker tags: ${TAGS}"
-
-          for T in $TAGS ; do
-            echo -n "${PRIMARY}:${T} "
-          done | sed 's/ $//' | tee images
+          for T in ${{ steps.tag.outputs.tags }} ; do
+            echo -n "${{ steps.name.outputs.name }}:${T} "
+          done | \
+          # Eat the trailing space.
+          sed 's/ $//' | tee images
+          echo "Docker tags: '${{ steps.tag.outputs.tags }}'"
+          echo "All images: '$(cat images)'"
           echo "images=$(cat images)" >> "$GITHUB_OUTPUT"
-
-          if [ -n "${{ inputs.additional_release_image_name }}" ]; then
-            for T in $TAGS ; do
-                echo -n "${{ inputs.additional_release_image_name }}:${T} "
-            done | sed 's/ $//' | tee additional_images
-            echo "additional_images=$(cat additional_images)" >> "$GITHUB_OUTPUT"
-          else
-            echo "additional_images=" >> "$GITHUB_OUTPUT"
-          fi
       - name: Output arch build matrix
         id: archs
         run: |
@@ -288,7 +283,7 @@ jobs:
       - name: Push it!
         run: docker push "${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
       - name: Tag and push additional image
-        if: inputs.additional_release_image_name != ''
+        if: inputs.additional_release_image_name != '' && needs.image.outputs.prerelease == 'false'
         run: |
           SRC="${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
           if [[ "$SRC" != "${{ inputs.image_name }}:"* ]]; then
@@ -393,7 +388,7 @@ jobs:
           done
 
           # Do the same for any additional manifests
-          if [ -n "${{ inputs.additional_release_image_name }}" ] ; then
+          if [ -n "${{ inputs.additional_release_image_name }}" ] && [ "${{ needs.image.outputs.prerelease }}" = "false" ]; then
             CANONICAL=$(echo "$CANONICAL" | sed "s#^${{ inputs.image_name }}#${{ inputs.additional_release_image_name }}#")
             test_manifest_creation "$CANONICAL"
             IMGS=$(echo ${{ inputs.archs }} | tr ' ' '\n' | sed "s%^%$CANONICAL-%" | tr '\n' ' ')
