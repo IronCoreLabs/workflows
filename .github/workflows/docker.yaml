@@ -392,7 +392,7 @@ jobs:
             CANONICAL=$(echo "$CANONICAL" | sed "s#^${{ inputs.image_name }}#${{ inputs.additional_release_image_name }}#")
             test_manifest_creation "$CANONICAL"
             IMGS=$(echo ${{ inputs.archs }} | tr ' ' '\n' | sed "s%^%$CANONICAL-%" | tr '\n' ' ')
-            NEEDS_IMAGES=$(echo "${{needs.image.outputs.images}}" | sed "s#^${{ inputs.image_name }}:#${{ inputs.additional_release_image_name }}:#")
+            NEEDS_IMAGES=$(echo "${{needs.image.outputs.images}}" | sed "s#^${{ inputs.image_name }}:#${{ inputs.additional_release_image_name }}:#g")
             for IMAGE in $NEEDS_IMAGES ; do
               docker manifest create "$IMAGE" ${IMGS}
               docker manifest push "$IMAGE"
