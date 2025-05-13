@@ -16,7 +16,7 @@ on:
         type: string
         required: true
       additional_release_image_name:
-        description: An optional second image base name. If provided, all tags will be applied and pushed here as well.
+        description: An optional second image base name. If provided, all release tags will be applied and pushed here as well. Will not push pre-release or PR builds.
         type: string
         required: false
         default: ""
