@@ -355,12 +355,12 @@ jobs:
           # Will look like "gcr.io/ironcore-dev-1/ironcore-id-server:1.2.6"
           CANONICAL="${{ steps.name.outputs.canonical }}"
           # Will look like "gcr.io/ironcore-dev-1/ironcore-id-server:1.2.6-amd64 gcr.io/ironcore-dev-1/ironcore-id-server:1.2.6-arm64"
-          IMGS=$(echo ${{ inputs.archs }} | tr ' ' '\n' | sed "s%^%$CANONICAL-%" | tr '\n' ' ')
+          IMGS=$(echo "${{ inputs.archs }}" | tr ' ' '\n' | sed "s%^%$CANONICAL-%" | tr '\n' ' ')
           test_manifest_creation() {
             local target="$1"
             for RETRY in $(seq 10); do
               echo "Attempt #$RETRY to pull images and create manifest for $target"
-              for ARCH in ${{ inputs.archs }} ; do
+              for ARCH in "${{ inputs.archs }}" ; do
                 if ! docker pull "${CANONICAL}-${ARCH}" ; then
                   echo "Attempt #${RETRY} failed."
                   sleep 10
@@ -382,8 +382,8 @@ jobs:
 
           test_manifest_creation "$CANONICAL"
           # If that worked, we should be able to create each of the aliases (e.g. 4.12.0, 4.12, 4).
-          for IMAGE in ${{ needs.image.outputs.images }} ; do
-            docker manifest create "$IMAGE" ${IMGS}
+          for IMAGE in "${{ needs.image.outputs.images }}" ; do
+            docker manifest create "$IMAGE" "${IMGS}"
             docker manifest push "$IMAGE"
           done
 
@@ -391,10 +391,10 @@ jobs:
           if [ -n "${{ inputs.additional_release_image_name }}" ] && [ "${{ needs.image.outputs.prerelease }}" = "false" ]; then
             CANONICAL=$(echo "$CANONICAL" | sed "s#^${{ inputs.image_name }}#${{ inputs.additional_release_image_name }}#")
             test_manifest_creation "$CANONICAL"
-            IMGS=$(echo ${{ inputs.archs }} | tr ' ' '\n' | sed "s%^%$CANONICAL-%" | tr '\n' ' ')
-            NEEDS_IMAGES=$(echo "${{needs.image.outputs.images}}" | sed "s#${{ inputs.image_name }}:#${{ inputs.additional_release_image_name }}:#g")
-            for IMAGE in $NEEDS_IMAGES ; do
-              docker manifest create "$IMAGE" ${IMGS}
+            IMGS=$(echo "${{ inputs.archs }}" | tr ' ' '\n' | sed "s%^%$CANONICAL-%" | tr '\n' ' ')
+            NEEDS_IMAGES=$(echo "${{ needs.image.outputs.images }}" | sed "s#${{ inputs.image_name }}:#${{ inputs.additional_release_image_name }}:#g")
+            for IMAGE in "$NEEDS_IMAGES" ; do
+              docker manifest create "$IMAGE" "${IMGS}"
               docker manifest push "$IMAGE"
             done
           fi
