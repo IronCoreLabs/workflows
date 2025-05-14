@@ -20,7 +20,7 @@ jobs:
         run: echo "run_url=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_OUTPUT
       - uses: coursier/setup-action@v1
         with:
-          jvm: adopt:17
+          jvm: openjdk:17
           apps: sbt
       - name: Run CVE check
         env:
