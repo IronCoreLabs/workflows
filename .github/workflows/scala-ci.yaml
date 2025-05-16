@@ -64,9 +64,9 @@ jobs:
           latest: true
       - name: Install specific Docker version
         if: inputs.docker_version != ''
-        uses: docker-practice/actions-setup-docker@cd1970d92bfd05e8dcbffbdb26784c8a9bb946f1
+        uses: docker/setup-docker-action@v4
         with:
-          docker_version: ${{ inputs.docker_version }}
+          version: ${{ inputs.docker_version }}
       - name: Build and test
         env:
           MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ vars.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
