@@ -67,6 +67,8 @@ jobs:
         uses: docker/setup-docker-action@v4
         with:
           version: ${{ inputs.docker_version }}
+      - name: Print docker version
+        run: docker --version
       - name: Build and test
         env:
           MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ vars.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
