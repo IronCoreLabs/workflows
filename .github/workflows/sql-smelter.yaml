@@ -33,13 +33,17 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number;
-            const body = "Using the `main` branch of `sql-smelter` for tests on this PR. If you would like to change that, comment with `sql-smelter/<branch_name>` and that will be used instead.";
 
+            // Create the unified comment with the marker
+            const body = `<!-- SQL_SMELTER_BRANCH_SELECTION -->
+            Branch selected for PR #${issue_number}: sql-smelter/main
+
+            If you want to change the branch, comment on this PR with \`sql-smelter/<branch-name>\`.`;
+
+            // Check if a comment already exists to avoid duplicates
             const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
-
             const existingComment = comments.find(comment =>
-              comment.body.includes('Using the `main` branch of `sql-smelter`') &&
-              comment.body.includes("If you'd like to change that")
+              comment.body.includes('<!-- SQL_SMELTER_BRANCH_SELECTION -->')
             );
 
             if (!existingComment) {
@@ -49,9 +53,9 @@ jobs:
                 issue_number,
                 body
               });
-              console.log(`Added initial comment to PR #${issue_number}`);
+              console.log(`Added initial branch selection comment to PR #${issue_number}`);
             } else {
-              console.log(`Comment already exists on PR #${issue_number}, skipping`);
+              console.log(`Branch selection comment already exists on PR #${issue_number}, skipping`);
             }
 
   detect-branch-comment:
@@ -68,7 +72,15 @@ jobs:
             const issue_number = context.issue.number;
             const comment_id = context.payload.comment.id;
             const comment_body = context.payload.comment.body;
+            const comment_user = context.payload.comment.user.login;
 
+            // Skip if the comment is from github-actions bot or contains our marker
+            if (comment_body.includes('<!-- SQL_SMELTER_BRANCH_SELECTION -->')) {
+              console.log('Comment is from GitHub Actions bot or contains our marker, ignoring');
+              return;
+            }
+
+            // More flexible pattern to handle variations
             const branchPattern = /sql[-\s]?smelter\s*\/\s*([a-zA-Z0-9_\-\.\/]+)/i;
             const match = comment_body.match(branchPattern);
 
@@ -76,6 +88,7 @@ jobs:
               const branchName = match[1];
               console.log(`Detected branch specification: sql-smelter/${branchName}`);
 
+              // Add thumbs up reaction to the comment
               await github.rest.reactions.createForIssueComment({
                 owner,
                 repo,
@@ -83,29 +96,36 @@ jobs:
                 content: '+1'
               });
 
-              const markerComment = `<!-- SQL_SMELTER_BRANCH_SELECTION -->\nBranch selected for PR #${issue_number}: sql-smelter/${branchName}`;
+              // Create or update the unified comment
+              const updatedBody = `<!-- SQL_SMELTER_BRANCH_SELECTION -->
+              Branch selected for PR #${issue_number}: sql-smelter/${branchName}
 
+              If you want to change the branch, comment on this PR with \`sql-smelter/<branch-name>\`.`;
+
+              // Find the existing comment with our marker
               const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
-              const existingMarkerComment = comments.find(comment =>
+              const existingComment = comments.find(comment =>
                 comment.body.includes('<!-- SQL_SMELTER_BRANCH_SELECTION -->')
               );
 
-              if (existingMarkerComment) {
+              if (existingComment) {
+                // Update the existing comment
                 await github.rest.issues.updateComment({
                   owner,
                   repo,
-                  comment_id: existingMarkerComment.id,
-                  body: markerComment
+                  comment_id: existingComment.id,
+                  body: updatedBody
                 });
-                console.log(`Updated branch selection marker comment #${existingMarkerComment.id}`);
+                console.log(`Updated branch selection comment #${existingComment.id}`);
               } else {
+                // Create a new comment if somehow it doesn't exist
                 await github.rest.issues.createComment({
                   owner,
                   repo,
                   issue_number,
-                  body: markerComment
+                  body: updatedBody
                 });
-                console.log(`Created branch selection marker comment`);
+                console.log(`Created branch selection comment`);
               }
             } else {
               console.log('Comment does not contain a branch specification, ignoring');
@@ -127,16 +147,18 @@ jobs:
             const issue_number = context.issue.number;
             let selectedBranch = 'main';
 
+            // Find the comment with our marker
             const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
             const markerComment = comments.find(comment =>
               comment.body.includes('<!-- SQL_SMELTER_BRANCH_SELECTION -->')
             );
 
             if (markerComment) {
+              // Extract the branch name from the marker comment
               const match = markerComment.body.match(/sql-smelter\/([a-zA-Z0-9_\-\.\/]+)/);
               if (match) {
                 selectedBranch = match[1];
-                console.log(`Found branch selection in marker comment: ${selectedBranch}`);
+                console.log(`Found branch selection in comment: ${selectedBranch}`);
               }
             }
 
@@ -160,16 +182,7 @@ jobs:
           path: "sql-smelter"
           token: ${{ secrets.token }}
 
-      - name: Fallback to default branch on error
-        if: steps.checkout-sql-smelter.outcome == 'failure'
-        uses: actions/checkout@v4
-        with:
-          repository: IronCoreLabs/sql-smelter
-          ref: main
-          path: "sql-smelter"
-          token: ${{ secrets.token }}
-
-      - name: Notify about fallback
+      - name: Notify about checkout failure
         if: steps.checkout-sql-smelter.outcome == 'failure'
         uses: actions/github-script@v7
         with:
@@ -178,13 +191,51 @@ jobs:
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number;
 
-            await github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number,
-              body: `⚠️ Failed to checkout branch \`sql-smelter/${{ needs.determine-branch.outputs.selected_branch }}\`. Falling back to \`sql-smelter/main\`.`
-            });
+            // Find the existing comment with our marker
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const existingComment = comments.find(comment =>
+              comment.body.includes('<!-- SQL_SMELTER_BRANCH_SELECTION -->')
+            );
+
+            if (existingComment) {
+              // Get the current content and add the failure message
+              let updatedBody = existingComment.body;
+
+              // Check if there's already a failure message
+              if (!updatedBody.includes('⚠️ Failed to checkout branch')) {
+                updatedBody += `\n\n⚠️ Failed to checkout branch \`sql-smelter/${{ needs.determine-branch.outputs.selected_branch }}\`.`;
+              }
+
+              // Update the comment
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existingComment.id,
+                body: updatedBody
+              });
+              console.log(`Updated comment with checkout failure notification`);
+            } else {
+              // If for some reason the comment doesn't exist, create it
+              const body = `<!-- SQL_SMELTER_BRANCH_SELECTION -->
+                Branch selected for PR #${issue_number}: sql-smelter/${{ needs.determine-branch.outputs.selected_branch }}
+
+                If you want to change the branch, comment on this PR with \`sql-smelter/<branch-name>\`.
+
+                ⚠️ Failed to checkout branch \`sql-smelter/${{ needs.determine-branch.outputs.selected_branch }}\`.`;
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body
+              });
+              console.log(`Created comment with checkout failure notification`);
+            }
+
+            // Exit with error to indicate the workflow should fail
+            core.setFailed(`Failed to checkout branch sql-smelter/${{ needs.determine-branch.outputs.selected_branch }}`);
 
       - name: Display checkout information
+        if: steps.checkout-sql-smelter.outcome == 'success'
         run: |
           echo "Checked out sql-smelter repository at branch: ${{ needs.determine-branch.outputs.selected_branch }}"
