@@ -144,6 +144,8 @@ jobs:
       - name: Cancel workflow if no valid branch
         if: steps.detect-comment.outputs.should_cancel == 'true'
         uses: andymckay/cancel-action@0.5
+        with:
+          token: ${{ secrets.token }}
 
   determine-branch:
     needs: detect-branch-comment
