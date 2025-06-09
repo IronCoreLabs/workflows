@@ -67,6 +67,11 @@ jobs:
         with:
           github-token: ${{ secrets.token }}
           script: |
+
+            if(!github.context){
+              console.log(`Skipping: not an 'issue_comment' creation.`);
+              return;
+            }
             const { eventName, payload, repo } = github.context;
 
             if (eventName !== 'issue_comment' || payload.action !== 'created') {
@@ -137,7 +142,6 @@ jobs:
 
   determine-branch:
     needs: detect-branch-comment
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       selected_branch: ${{ steps.get-branch.outputs.branch }}
