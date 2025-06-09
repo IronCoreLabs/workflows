@@ -68,11 +68,11 @@ jobs:
           github-token: ${{ secrets.token }}
           script: |
 
-            if(!github.context){
+            if(!context){
               console.log(`Skipping: not an 'issue_comment' creation.`);
               return;
             }
-            const { eventName, payload, repo } = github.context;
+            const { eventName, payload, repo } = context;
 
             if (eventName !== 'issue_comment' || payload.action !== 'created') {
               console.log(`Skipping: not an 'issue_comment' creation (got ${eventName} / ${payload.action})`);
