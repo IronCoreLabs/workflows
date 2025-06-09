@@ -59,7 +59,6 @@ jobs:
             }
 
   detect-branch-comment:
-    if: github.event_name == 'issue_comment' && github.event.action == 'created'
     runs-on: ubuntu-latest
     steps:
       - name: Detect branch comment
@@ -68,19 +67,24 @@ jobs:
         with:
           github-token: ${{ secrets.token }}
           script: |
-            const { owner, repo } = context.repo;
-            const issue_number = context.issue.number;
-            const comment_id = context.payload.comment.id;
-            const comment_body = context.payload.comment.body;
-            const comment_user = context.payload.comment.user.login;
+            const { eventName, payload, repo } = github.context;
 
-            // Skip if the comment is from github-actions bot or contains our marker
+            if (eventName !== 'issue_comment' || payload.action !== 'created') {
+              console.log(`Skipping: not an 'issue_comment' creation (got ${eventName} / ${payload.action})`);
+              return;
+            }
+
+            const { owner } = repo;
+            const issue_number = payload.issue.number;
+            const comment_id = payload.comment.id;
+            const comment_body = payload.comment.body;
+            const comment_user = payload.comment.user.login;
+
             if (comment_body.includes('<!-- SQL_SMELTER_BRANCH_SELECTION -->')) {
               console.log('Comment is from GitHub Actions bot or contains our marker, ignoring');
               return;
             }
 
-            // More flexible pattern to handle variations
             const branchPattern = /sql[-\s]?smelter\s*\/\s*([a-zA-Z0-9_\-\.\/]+)/i;
             const match = comment_body.match(branchPattern);
 
@@ -88,40 +92,40 @@ jobs:
               const branchName = match[1];
               console.log(`Detected branch specification: sql-smelter/${branchName}`);
 
-              // Add thumbs up reaction to the comment
               await github.rest.reactions.createForIssueComment({
                 owner,
-                repo,
+                repo: repo.repo,
                 comment_id,
                 content: '+1'
               });
 
-              // Create or update the unified comment
               const updatedBody = `<!-- SQL_SMELTER_BRANCH_SELECTION -->
-              Branch selected for PR #${issue_number}: sql-smelter/${branchName}
+                Branch selected for PR #${issue_number}: sql-smelter/${branchName}
 
-              If you want to change the branch, comment on this PR with \`sql-smelter/<branch-name>\`.`;
+                If you want to change the branch, comment on this PR with \`sql-smelter/<branch-name>\`.`;
 
-              // Find the existing comment with our marker
-              const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
+              const { data: comments } = await github.rest.issues.listComments({
+                owner,
+                repo: repo.repo,
+                issue_number
+              });
+
               const existingComment = comments.find(comment =>
                 comment.body.includes('<!-- SQL_SMELTER_BRANCH_SELECTION -->')
               );
 
               if (existingComment) {
-                // Update the existing comment
                 await github.rest.issues.updateComment({
                   owner,
-                  repo,
+                  repo: repo.repo,
                   comment_id: existingComment.id,
                   body: updatedBody
                 });
                 console.log(`Updated branch selection comment #${existingComment.id}`);
               } else {
-                // Create a new comment if somehow it doesn't exist
                 await github.rest.issues.createComment({
                   owner,
-                  repo,
+                  repo: repo.repo,
                   issue_number,
                   body: updatedBody
                 });
@@ -132,6 +136,7 @@ jobs:
             }
 
   determine-branch:
+    needs: detect-branch-comment
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     outputs:
