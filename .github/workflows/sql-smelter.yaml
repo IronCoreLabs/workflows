@@ -132,6 +132,7 @@ jobs:
             }
 
   determine-branch:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       selected_branch: ${{ steps.get-branch.outputs.branch }}
