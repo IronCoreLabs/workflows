@@ -94,6 +94,7 @@ jobs:
             const match = comment_body.match(branchPattern);
 
             if (match) {
+              core.setOutput('should_cancel', 'false');
               const branchName = match[1];
               console.log(`Detected branch specification: sql-smelter/${branchName}`);
 
@@ -105,9 +106,9 @@ jobs:
               });
 
               const updatedBody = `<!-- SQL_SMELTER_BRANCH_SELECTION -->
-                Branch selected for PR #${issue_number}: sql-smelter/${branchName}
+              Branch selected for PR #${issue_number}: sql-smelter/${branchName}
 
-                If you want to change the branch, comment on this PR with \`sql-smelter/<branch-name>\`.`;
+              If you want to change the branch, comment on this PR with \`sql-smelter/<branch-name>\`.`;
 
               const { data: comments } = await github.rest.issues.listComments({
                 owner,
@@ -137,8 +138,12 @@ jobs:
                 console.log(`Created branch selection comment`);
               }
             } else {
+              core.setOutput('should_cancel', 'true');
               console.log('Comment does not contain a branch specification, ignoring');
             }
+      - name: Cancel workflow if no valid branch
+        if: steps.detect-comment.outputs.should_cancel == 'true'
+        uses: andymckay/cancel-action@0.5
 
   determine-branch:
     needs: detect-branch-comment
