@@ -14,6 +14,16 @@ concurrency:
 on:
   workflow_call:
     inputs:
+      smelter_required:
+        description: Whether or not sql-smelter is required for this repository's tests.
+        type: boolean
+        required: false
+        default: false
+      smelter_branch:
+        description: Branch of smelter to check out. Should come from the sql-smelter workflow. Defaults to main.
+        type: string
+        required: false
+        default: "main"
       test_matrix_node_version:
         description: 'A JS array list of versions to be included in the test matrix. Defaults to "["14"]".'
         required: false
@@ -56,11 +66,24 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       NODE_OPTIONS: ${{ inputs.node_options }}
+      UNDER_TEST_FOLDER: typescript-repo
     strategy:
       matrix:
         node_version: "${{ fromJSON(inputs.test_matrix_node_version) }}"
+    defaults:
+      run:
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: ${{ env.UNDER_TEST_FOLDER }}
+      - uses: actions/checkout@v4
+        if: ${{ inputs.smelter_required }}
+        with:
+          repository: IronCoreLabs/sql-smelter
+          token: ${{ secrets.WORKFLOW_PAT }}
+          ref: ${{ inputs.smelter_branch }}
+          path: sql-smelter
       - name: Decrypt ironhide files
         uses: IronCoreLabs/ironhide-actions/decrypt@v3
         if: ${{ inputs.files_to_decrypt != '' }}
