@@ -85,7 +85,8 @@ jobs:
           ref: ${{ inputs.smelter_branch }}
           path: sql-smelter
       - name: Decrypt ironhide files
-        uses: IronCoreLabs/ironhide-actions/decrypt@v3
+        # TODO: Remove branch
+        uses: IronCoreLabs/ironhide-actions/decrypt@support-working-directory
         if: ${{ inputs.files_to_decrypt != '' }}
         with:
           keys: ${{ secrets.IRONHIDE_KEYS }}
