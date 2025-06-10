@@ -96,6 +96,7 @@ jobs:
         with:
           node-version: ${{ matrix.node_version }}
           cache: yarn
+          cache-dependency-path: ${{ env.UNDER_TEST_FOLDER }}/yarn.lock
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: |
