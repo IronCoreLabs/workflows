@@ -84,6 +84,12 @@ jobs:
           token: ${{ secrets.WORKFLOW_PAT }}
           ref: ${{ inputs.smelter_branch }}
           path: sql-smelter
+      - name: Install refinery
+        if: ${{ inputs.smelter_required }}
+        uses: IronCoreLabs/rust-install@v0.1.2
+        with:
+          crate: refinery_cli
+          accesskey: ${{ vars.TOOL_CACHE_ACCESS_KEY_ID }}
       - name: Decrypt ironhide files
         # TODO: Remove branch
         uses: IronCoreLabs/ironhide-actions/decrypt@support-working-directory
