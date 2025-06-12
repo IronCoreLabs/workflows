@@ -1,3 +1,8 @@
+# This workflow writes a comment about which sql-smelter branch to use and uses user provided comments to change it from main if
+# required. As such, it needs to have a trigger on issue comment created. Something like this:
+#issue_comment:
+#    types: [created]
+
 name: SQL Smelter Integration Workflow
 
 on:
