@@ -91,7 +91,7 @@ jobs:
           crate: refinery_cli
           accesskey: ${{ vars.TOOL_CACHE_ACCESS_KEY_ID }}
           secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
-
+          os: ubuntu-22.04
       - name: Decrypt ironhide files
         # TODO: Remove branch
         uses: IronCoreLabs/ironhide-actions/decrypt@support-working-directory
