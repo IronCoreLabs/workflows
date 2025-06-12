@@ -72,6 +72,7 @@ jobs:
           crate: refinery_cli
           accesskey: ${{ vars.TOOL_CACHE_ACCESS_KEY_ID }}
           secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
+          os: ubuntu-22.04
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: |
