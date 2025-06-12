@@ -37,12 +37,42 @@ on:
         type: string
         required: false
         default: ""
+      smelter_required:
+        description: Whether or not sql-smelter is required for this repository's tests.
+        type: boolean
+        required: false
+        default: false
+      smelter_branch:
+        description: Branch of smelter to check out. Should come from the sql-smelter workflow. Defaults to main.
+        type: string
+        required: false
+        default: "main"
+        
 
 jobs:
   test:
     runs-on: ubuntu-22.04
+    env:
+      UNDER_TEST_FOLDER: scala-repo
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: ${{ env.UNDER_TEST_FOLDER }}
+      - uses: actions/checkout@v4
+        if: ${{ inputs.smelter_required }}
+        with:
+          repository: IronCoreLabs/sql-smelter
+          token: ${{ secrets.WORKFLOW_PAT }}
+          ref: ${{ inputs.smelter_branch }}
+          path: sql-smelter
+      - name: Install refinery
+        if: ${{ inputs.smelter_required }}
+        uses: IronCoreLabs/rust-install@v0.1.2
+        with:
+          crate: refinery_cli
+          accesskey: ${{ vars.TOOL_CACHE_ACCESS_KEY_ID }}
+          secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
+          os: ubuntu-22.04
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: |
@@ -68,6 +98,7 @@ jobs:
         with:
           version: ${{ inputs.docker_version }}
       - name: Build and test
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
         env:
           MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ vars.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
           MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
