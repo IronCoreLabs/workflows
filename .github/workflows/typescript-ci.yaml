@@ -93,8 +93,7 @@ jobs:
           secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
           os: ubuntu-22.04
       - name: Decrypt ironhide files
-        # TODO: Remove branch
-        uses: IronCoreLabs/ironhide-actions/decrypt@support-working-directory
+        uses: IronCoreLabs/ironhide-actions/decrypt@v3
         if: ${{ inputs.files_to_decrypt != '' }}
         with:
           keys: ${{ secrets.IRONHIDE_KEYS }}
