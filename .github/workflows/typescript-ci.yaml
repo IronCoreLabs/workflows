@@ -119,9 +119,9 @@ jobs:
         with:
           fullCoverageDiff: false
           delta: 0.2
-          afterSwitchCommand: "yarn"
+          afterSwitchCommand: "cd ..; yarn"
           accessToken: ${{ secrets.WORKFLOW_PAT }}
-          runCommand: npx jest --coverage --coverageReporters="json-summary" --coverageDirectory="./" --config="${{ env.UNDER_TEST_FOLDER}}/jest.config.js"
+          runCommand: cd "${{env.UNDER_TEST_FOLDER }}; npx jest --coverage --coverageReporters="json-summary" --coverageDirectory="./"
       - name: Additional commands
         if: ${{ inputs.additional_steps != '' }}
         shell: bash
