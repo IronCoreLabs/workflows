@@ -121,7 +121,7 @@ jobs:
           delta: 0.2
           afterSwitchCommand: "cd ..; yarn"
           accessToken: ${{ secrets.WORKFLOW_PAT }}
-          runCommand: cd "${{env.UNDER_TEST_FOLDER }}"; npx jest --coverage --coverageReporters="json-summary" --coverageDirectory="./"
+          runCommand: cd "${{env.UNDER_TEST_FOLDER }}"; npx jest --coverage --coverageReporters="json-summary" --coverageDirectory="./"; cd ..
       - name: Additional commands
         if: ${{ inputs.additional_steps != '' }}
         shell: bash
