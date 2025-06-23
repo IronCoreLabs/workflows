@@ -115,7 +115,7 @@ jobs:
         run: yarn run test
       - name: Check test coverage
         if: ${{ inputs.run_coverage && github.base_ref != '' }}
-        uses: ArtiomTr/jest-coverage-report-action@v2
+        uses: ArtiomTr/jest-coverage-report-action@v2.1.3
         with:
           working-directory: typescript-repo
           github-token: ${{ secrets.WORKFLOW_PAT }}
