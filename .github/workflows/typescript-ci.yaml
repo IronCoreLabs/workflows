@@ -120,6 +120,7 @@ jobs:
           #   working-directory: ${{ env.UNDER_TEST_FOLDER }}
           github-token: ${{ secrets.WORKFLOW_PAT }}
           package-manager: yarn
+          test-script: yarn jest
       - name: Additional commands
         if: ${{ inputs.additional_steps != '' }}
         shell: bash
