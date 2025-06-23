@@ -115,13 +115,10 @@ jobs:
         run: yarn run test
       - name: Check test coverage
         if: ${{ inputs.run_coverage && github.base_ref != '' }}
-        uses: anuraag016/Jest-Coverage-Diff@V1.4
+        uses: ArtiomTr/jest-coverage-report-action@v2
         with:
-          fullCoverageDiff: false
-          delta: 0.2
-          afterSwitchCommand: "cd ..; yarn"
-          accessToken: ${{ secrets.WORKFLOW_PAT }}
-          runCommand: cd "${{env.UNDER_TEST_FOLDER }}"; npx jest --coverage --coverageReporters="json-summary" --coverageDirectory="${{env.UNDER_TEST_FOLDER }}"
+          working-directory: ${{ env.UNDER_TEST_FOLDER }}
+          github-token: ${{ secrets.WORKFLOW_PAT }}
       - name: Additional commands
         if: ${{ inputs.additional_steps != '' }}
         shell: bash
