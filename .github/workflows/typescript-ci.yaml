@@ -117,7 +117,7 @@ jobs:
         if: ${{ inputs.run_coverage && github.base_ref != '' }}
         uses: ArtiomTr/jest-coverage-report-action@v2
         with:
-          #   working-directory: ${{ env.UNDER_TEST_FOLDER }}
+          working-directory: typescript-repo
           github-token: ${{ secrets.WORKFLOW_PAT }}
           package-manager: yarn
           test-script: yarn jest
