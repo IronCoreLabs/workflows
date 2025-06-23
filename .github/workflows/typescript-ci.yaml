@@ -120,7 +120,7 @@ jobs:
           working-directory: typescript-repo
           github-token: ${{ secrets.WORKFLOW_PAT }}
           package-manager: yarn
-          test-script: yarn jest
+          test-script: cd typescript-repo; yarn jest
       - name: Additional commands
         if: ${{ inputs.additional_steps != '' }}
         shell: bash
