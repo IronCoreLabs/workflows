@@ -118,13 +118,14 @@ jobs:
           yarn run test;
       - name: Check test coverage
         if: ${{ inputs.run_coverage && github.base_ref != '' }}
-        uses: anuraag016/Jest-Coverage-Diff@V1.4
+        uses: giarc3/Jest-Coverage-Diff@testing
         with:
           fullCoverageDiff: false
           delta: 0.2
-          afterSwitchCommand: mv typescript-repo/coverage-summary.json ./coverage-summary.json; yarn
+          afterSwitchCommand: yarn
           accessToken: ${{ secrets.WORKFLOW_PAT }}
-          runCommand: cd typescript-repo; yarn jest --coverage --collectCoverage=true  --coverageReporters='json-summary' --coverageDirectory='./'; cd ..
+          runCommand: yarn jest --coverage --collectCoverage=true  --coverageReporters='json-summary' --coverageDirectory='./'
+          workingDirectory: ${{ env.UNDER_TEST_FOLDER }}
       - name: Additional commands
         if: ${{ inputs.additional_steps != '' }}
         shell: bash
