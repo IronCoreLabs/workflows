@@ -70,9 +70,9 @@ jobs:
     strategy:
       matrix:
         node_version: "${{ fromJSON(inputs.test_matrix_node_version) }}"
-    # defaults:
-    #   run:
-    #     working-directory: ${{ env.UNDER_TEST_FOLDER }}
+    defaults:
+      run:
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -109,13 +109,10 @@ jobs:
         run: |
           sudo apt update
           sudo apt install ${{ inputs.additional_system_deps }}
+      - name: Install modules
+        run: yarn
       - name: Run tests
-        run: |
-          ls -al; 
-          cd ${{ env.UNDER_TEST_FOLDER }}; 
-          ls -al; 
-          yarn; 
-          yarn run test;
+        run: yarn run test
       - name: Check test coverage
         if: ${{ inputs.run_coverage && github.base_ref != '' }}
         uses: joshuali925/Jest-Coverage-Diff@custom-directory
@@ -124,7 +121,6 @@ jobs:
           delta: 0.2
           afterSwitchCommand: yarn
           accessToken: ${{ secrets.WORKFLOW_PAT }}
-          #   runCommand: yarn jest --coverage --collectCoverage=true  --coverageReporters='json-summary' --coverageDirectory='./'
           directory: ${{ env.UNDER_TEST_FOLDER }}
       - name: Additional commands
         if: ${{ inputs.additional_steps != '' }}
