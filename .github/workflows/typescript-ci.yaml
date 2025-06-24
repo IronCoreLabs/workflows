@@ -110,9 +110,9 @@ jobs:
           sudo apt update
           sudo apt install ${{ inputs.additional_system_deps }}
       - name: Install modules
-        run: cd ${{ env.UNDER_TEST_FOLDER }}; yarn
+        run: ls -al; cd ${{ env.UNDER_TEST_FOLDER }}; ls -al; yarn; yarn run test;
       - name: Run tests
-        run: yarn run test
+        run: ls -al; yarn run test
       - name: Check test coverage
         if: ${{ inputs.run_coverage && github.base_ref != '' }}
         uses: ArtiomTr/jest-coverage-report-action@v2.1.3
