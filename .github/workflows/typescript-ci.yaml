@@ -124,7 +124,7 @@ jobs:
           delta: 0.2
           afterSwitchCommand: "yarn"
           accessToken: ${{ secrets.WORKFLOW_PAT }}
-          runCommand: ls -al; npx jest --coverage --coverageReporters="json-summary"
+          runCommand: cd typescript-repo; ls -al; yarn jest --coverage --coverageReporters="json-summary"
       - name: Additional commands
         if: ${{ inputs.additional_steps != '' }}
         shell: bash
