@@ -122,7 +122,7 @@ jobs:
         with:
           fullCoverageDiff: false
           delta: 0.2
-          afterSwitchCommand: cd typescript-repo; yarn
+          afterSwitchCommand: mv typescript-repo/coverage-summary.json ./coverage-summary.json; yarn
           accessToken: ${{ secrets.WORKFLOW_PAT }}
           runCommand: cd typescript-repo; yarn jest --coverage --collectCoverage=true  --coverageReporters='json-summary' --coverageDirectory='./'
       - name: Additional commands
