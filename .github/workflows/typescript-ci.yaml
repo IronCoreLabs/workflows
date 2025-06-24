@@ -74,10 +74,10 @@ jobs:
     #   run:
     #     working-directory: ${{ env.UNDER_TEST_FOLDER }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: ${{ env.UNDER_TEST_FOLDER }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         if: ${{ inputs.smelter_required }}
         with:
           repository: IronCoreLabs/sql-smelter
@@ -118,12 +118,13 @@ jobs:
           yarn run test;
       - name: Check test coverage
         if: ${{ inputs.run_coverage && github.base_ref != '' }}
-        uses: ArtiomTr/jest-coverage-report-action@v2.2.1
+        uses: anuraag016/Jest-Coverage-Diff@V1.4
         with:
-          working-directory: typescript-repo
-          github-token: ${{ secrets.WORKFLOW_PAT }}
-          package-manager: yarn
-          test-script: yarn jest
+          fullCoverageDiff: false
+          delta: 0.2
+          afterSwitchCommand: "yarn"
+          accessToken: ${{ secrets.WORKFLOW_PAT }}
+          runCommand: ls -al; npx jest --coverage --coverageReporters="json-summary"
       - name: Additional commands
         if: ${{ inputs.additional_steps != '' }}
         shell: bash
