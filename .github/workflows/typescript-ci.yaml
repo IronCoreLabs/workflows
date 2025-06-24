@@ -118,14 +118,14 @@ jobs:
           yarn run test;
       - name: Check test coverage
         if: ${{ inputs.run_coverage && github.base_ref != '' }}
-        uses: giarc3/Jest-Coverage-Diff@testing
+        uses: joshuali925/Jest-Coverage-Diff@custom-directory
         with:
           fullCoverageDiff: false
           delta: 0.2
           afterSwitchCommand: yarn
           accessToken: ${{ secrets.WORKFLOW_PAT }}
-          runCommand: yarn jest --coverage --collectCoverage=true  --coverageReporters='json-summary' --coverageDirectory='./'
-          workingDirectory: ${{ env.UNDER_TEST_FOLDER }}
+          #   runCommand: yarn jest --coverage --collectCoverage=true  --coverageReporters='json-summary' --coverageDirectory='./'
+          directory: ${{ env.UNDER_TEST_FOLDER }}
       - name: Additional commands
         if: ${{ inputs.additional_steps != '' }}
         shell: bash
