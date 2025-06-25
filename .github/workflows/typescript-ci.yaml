@@ -115,12 +115,13 @@ jobs:
         run: yarn run test
       - name: Check test coverage
         if: ${{ inputs.run_coverage && github.base_ref != '' }}
-        uses: anuraag016/Jest-Coverage-Diff@V1.4
+        uses: joshuali925/Jest-Coverage-Diff@custom-directory
         with:
           fullCoverageDiff: false
           delta: 0.2
-          afterSwitchCommand: "yarn"
+          afterSwitchCommand: yarn
           accessToken: ${{ secrets.WORKFLOW_PAT }}
+          directory: ${{ env.UNDER_TEST_FOLDER }}
       - name: Additional commands
         if: ${{ inputs.additional_steps != '' }}
         shell: bash
