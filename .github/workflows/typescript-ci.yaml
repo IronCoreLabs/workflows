@@ -64,6 +64,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-22.04
+    if: github.event_name != 'issue_comment'
     env:
       NODE_OPTIONS: ${{ inputs.node_options }}
       UNDER_TEST_FOLDER: typescript-repo

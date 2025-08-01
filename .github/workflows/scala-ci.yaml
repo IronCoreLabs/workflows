@@ -50,6 +50,7 @@ on:
 
 jobs:
   test:
+    if: github.event_name != 'issue_comment'
     runs-on: ubuntu-24.04
     env:
       UNDER_TEST_FOLDER: scala-repo
