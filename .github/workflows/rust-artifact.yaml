@@ -65,7 +65,7 @@ jobs:
         rust_target: "${{ fromJSON(inputs.build_matrix_rust_target) }}"
         include: ${{ fromJSON(inputs.matrix_include) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - id: rust_root
         run: |
           if [ -n "${{ inputs.rust_root }}" ] ; then

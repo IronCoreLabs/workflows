@@ -11,7 +11,7 @@ jobs:
   test:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set file_name output var
         id: file_name
         run: echo "file_name=$(date +%B)-${GITHUB_REPOSITORY#*/}-cve.html" >> $GITHUB_OUTPUT

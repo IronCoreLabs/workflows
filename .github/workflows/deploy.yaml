@@ -57,7 +57,7 @@ jobs:
         echo "${HOME}/bin" >> ${GITHUB_PATH}
 
     - name: Check out software repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         ref: ${{ inputs.tag }}
         path: software
@@ -81,7 +81,7 @@ jobs:
 
     # Make a PR to the deployments repo.
     - name: Check out deployments
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         fetch-depth: 0
         repository: IronCoreLabs/deployments
@@ -168,7 +168,7 @@ jobs:
     steps:
     # Update the local dev clusters to use the new container.
     - name: Check out depot
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         repository: IronCoreLabs/depot
         path: depot
