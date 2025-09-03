@@ -6,14 +6,14 @@ on:
   push:
     branches:
       - main
-  pull_request: null
-  workflow_dispatch: null
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install shellspec
         run: |
           set -o pipefail

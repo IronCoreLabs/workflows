@@ -47,7 +47,7 @@ on:
         description: Runner to use for `image` and `publish` jobs within the workflow.
         type: string
         required: false
-        default: "buildjet-2vcpu-ubuntu-2204"
+        default: ubuntu-24.04
       configure_git_ssh:
         description: Whether to configure git ssh with LEEROY_PRIVATE_SSH_KEY repository secret.
         type: boolean
@@ -160,10 +160,10 @@ jobs:
           for A in ${{ inputs.archs }} ; do
             case $A in
             amd64)
-              RUNS_ON=buildjet-2vcpu-ubuntu-2204
+              RUNS_ON=ubuntu-24.04
               ;;
             arm64)
-              RUNS_ON=buildjet-4vcpu-ubuntu-2204-arm
+              RUNS_ON=ubuntu-24.04-arm
               ;;
             *)
               echo "Unknown arch '$A'"
@@ -185,12 +185,12 @@ jobs:
       matrix:
         runs_on: ${{ fromJson(needs.image.outputs.runners) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # Either the workflow_dispatch ref, or the prerelease tag, whichever is set.
           ref: ${{ github.event.inputs.ref }}${{ github.event.release.tag_name }}
       - name: Log in to docker
-        # This avoids rate limits. https://buildjet.com/for-github-actions/docs/faq#docker-rate-limiting
+        # This avoids rate limits.
         uses: docker/login-action@v3
         with:
           username: ironcoreci
@@ -307,7 +307,7 @@ jobs:
         # So this conditional checks that the trigger was _not_ a pull_request.
         # The "contains()" conditional checks that this is a release like 1.2.3, not a prerelease like 1.2.3-rc.1.
         if: ${{ github.head_ref == '' && inputs.buildlog_repo != '' && !contains(needs.image.outputs.longtag, '-') }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ inputs.buildlog_repo }}
           token: ${{ secrets.WORKFLOW_PAT }}
@@ -315,7 +315,7 @@ jobs:
           path: .github/tmp_buildlog_dir
       - name: Checkout workflows repo
         if: ${{ github.head_ref == '' && inputs.buildlog_repo != '' && !contains(needs.image.outputs.longtag, '-')}}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: IronCoreLabs/workflows
           ref: ${{ inputs.workflow_repo_ref_override != '' && inputs.workflow_repo_ref_override || 'docker-v1'}}
@@ -334,7 +334,7 @@ jobs:
     needs: [docker, image]
     runs-on: ${{ inputs.other_jobs_runs_on }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # Either the workflow_dispatch ref, or the prerelease tag, whichever is set.
           ref: ${{ github.event.inputs.ref }}${{ github.event.release.tag_name }}

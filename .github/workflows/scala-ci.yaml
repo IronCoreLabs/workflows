@@ -55,10 +55,10 @@ jobs:
     env:
       UNDER_TEST_FOLDER: scala-repo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           path: ${{ env.UNDER_TEST_FOLDER }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: ${{ inputs.smelter_required }}
         with:
           repository: IronCoreLabs/sql-smelter
@@ -72,7 +72,7 @@ jobs:
           crate: refinery_cli
           accesskey: ${{ vars.TOOL_CACHE_ACCESS_KEY_ID }}
           secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
-          os: ubuntu-22.04
+          os: ubuntu-24.04
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: |

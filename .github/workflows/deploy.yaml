@@ -9,7 +9,7 @@ name: Deploy
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-'on':
+on:
   workflow_call:
     inputs:
       tag:
@@ -29,185 +29,185 @@ concurrency:
         required: true
 jobs:
   deployments:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-    - name: Set up GitHub auth
-      run: |
-        echo "GITHUB_TOKEN=${{ secrets.WORKFLOW_PAT }}" >> "$GITHUB_ENV"
-    - name: Install JSON tools
-      run: pip3 install jsonpatch pyyaml
-    - name: Build yaml2json, json2yaml
-      run: |
-        mkdir -p ~/bin
-        cat - << EOF > ~/bin/json2yaml
-        #!/usr/bin/env python3
-        import json
-        import sys
-        import yaml
-        sys.stdout.write(yaml.dump(json.load(sys.stdin),sort_keys=False))
-        EOF
-        cat - << EOF > ~/bin/yaml2json
-        #!/usr/bin/env python3
-        import json
-        import sys
-        import yaml
-        json.dump(yaml.full_load(sys.stdin),sys.stdout)
-        EOF
-        chmod +x ~/bin/json2yaml ~/bin/yaml2json
-        echo "${HOME}/bin" >> ${GITHUB_PATH}
+      - name: Set up GitHub auth
+        run: |
+          echo "GITHUB_TOKEN=${{ secrets.WORKFLOW_PAT }}" >> "$GITHUB_ENV"
+      - name: Install JSON tools
+        run: pip3 install jsonpatch pyyaml
+      - name: Build yaml2json, json2yaml
+        run: |
+          mkdir -p ~/bin
+          cat - << EOF > ~/bin/json2yaml
+          #!/usr/bin/env python3
+          import json
+          import sys
+          import yaml
+          sys.stdout.write(yaml.dump(json.load(sys.stdin),sort_keys=False))
+          EOF
+          cat - << EOF > ~/bin/yaml2json
+          #!/usr/bin/env python3
+          import json
+          import sys
+          import yaml
+          json.dump(yaml.full_load(sys.stdin),sys.stdout)
+          EOF
+          chmod +x ~/bin/json2yaml ~/bin/yaml2json
+          echo "${HOME}/bin" >> ${GITHUB_PATH}
 
-    - name: Check out software repo
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ inputs.tag }}
-        path: software
-    # Find the original PR to the software repo. The git tag should correspond to a GitHub release, which should have a
-    # description pointing to the PR number.
-    - name: Get original PR
-      id: software-pr
-      working-directory: software
-      run: |
-        set -x
-        gh release view ${{ inputs.tag }} --json body --jq '.body' | sed 's/.*latest_pr:\([0-9]*\).*/\1/' > /tmp/pr
-        PR=$(cat /tmp/pr)
-        if [ -z "${PR}" ] || [ "${PR}" = "null" ] ; then
-          exit 0
-        fi
-        echo "pr=$PR" >> "$GITHUB_OUTPUT"
-        AUTHOR=$(gh pr view ${PR} --json author --jq '.author.login')
-        if [ -n "$AUTHOR" ] ; then
-          echo "author=$AUTHOR" >> "$GITHUB_OUTPUT"
-        fi
-
-    # Make a PR to the deployments repo.
-    - name: Check out deployments
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        repository: IronCoreLabs/deployments
-        path: deployments
-        token: ${{ secrets.WORKFLOW_PAT }}
-    - name: Update deployments
-      id: update-recipes
-      working-directory: deployments
-      run: |
-        set -x
-        for DIR in apps/*/base apps/*/mixins/* ; do
-          if ! [ -d "${DIR}" ] ; then
-            continue
+      - name: Check out software repo
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag }}
+          path: software
+      # Find the original PR to the software repo. The git tag should correspond to a GitHub release, which should have a
+      # description pointing to the PR number.
+      - name: Get original PR
+        id: software-pr
+        working-directory: software
+        run: |
+          set -x
+          gh release view ${{ inputs.tag }} --json body --jq '.body' | sed 's/.*latest_pr:\([0-9]*\).*/\1/' > /tmp/pr
+          PR=$(cat /tmp/pr)
+          if [ -z "${PR}" ] || [ "${PR}" = "null" ] ; then
+            exit 0
           fi
-          (
-            cd "${DIR}"
-            FILE="kustomization.yaml"
-            for IMG in ${{ inputs.images }} ; do
-              PLACEHOLDER=$(echo "${IMG}" | sed 's/=.*//')
-              NEW_NAME=$(echo "${IMG}" | sed 's/[^=]*=//')
-              if [ -n "${{ inputs.image-override }}" ] ; then
-                NEW_NAME="${{ inputs.image-override }}"
-              fi
-              yaml2json < "${FILE}" > /tmp/kust.json
-              jq --arg name "${PLACEHOLDER}" '[(.images // []) | .[] | .name == $name] | any' < /tmp/kust.json > /tmp/status
-              if [ $(cat /tmp/status) = true ] ; then
-                kustomize edit set image "${PLACEHOLDER}=${NEW_NAME}:${{ inputs.tag }}"
-                echo "${DIR}" | sed 's,apps/\([^/]*\)/.*,\1,' >> /tmp/edited-dirs
-                git add "kustomization.yaml"
-              fi
-            done
-          )
-        done
-        if ! [ -f /tmp/edited-dirs ] ; then
-          echo "No recipes found with any of '${{ inputs.images }}' in them."
-          exit 1
-        fi
-        EDITED="$(sort -u < /tmp/edited-dirs | tr '\n' ' ' | sed 's/ $//')"
-        echo "edited-recipes=${EDITED}" >> $GITHUB_OUTPUT
-    - name: Commit and PR to deployments
-      id: promote-pr
-      working-directory: deployments
-      run: |
-        set -x
-        git config --global user.email ops@ironcorelabs.com
-        git config --global user.name "Leeroy Travis"
-        THISREPO="$(basename ${{ github.repository }})"
-        NEW_BRANCH="${THISREPO}-${{ inputs.tag }}"
-        echo "branch=${NEW_BRANCH}" >> "$GITHUB_OUTPUT"
-        git checkout -b "${NEW_BRANCH}"
-        COMMIT_MSG="Upgrade: [ ${THISREPO} -> ${{ inputs.tag }} ]"
-        git commit -m "${COMMIT_MSG}"
-        git push -u origin "${NEW_BRANCH}"
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
+          AUTHOR=$(gh pr view ${PR} --json author --jq '.author.login')
+          if [ -n "$AUTHOR" ] ; then
+            echo "author=$AUTHOR" >> "$GITHUB_OUTPUT"
+          fi
 
-        # If we can't find the originating PR, it must mean the change came from automation, and we should auto-promote.
-        if [ -z "${{ steps.software-pr.outputs.pr }}" ] ; then
-          LABELS="--label auto-promote"
-        fi
-        AUTHOR="${{ steps.software-pr.outputs.author }}"
-        if [ -n "$AUTHOR" ] ; then
-          ASSIGNEE="--assignee $AUTHOR --reviewer $AUTHOR"
-        fi
-        gh pr create --fill $ASSIGNEE $LABELS
-        PR=$(gh pr view --json number --jq .number)
-        echo "pr=$PR" >> "$GITHUB_OUTPUT"
+      # Make a PR to the deployments repo.
+      - name: Check out deployments
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          repository: IronCoreLabs/deployments
+          path: deployments
+          token: ${{ secrets.WORKFLOW_PAT }}
+      - name: Update deployments
+        id: update-recipes
+        working-directory: deployments
+        run: |
+          set -x
+          for DIR in apps/*/base apps/*/mixins/* ; do
+            if ! [ -d "${DIR}" ] ; then
+              continue
+            fi
+            (
+              cd "${DIR}"
+              FILE="kustomization.yaml"
+              for IMG in ${{ inputs.images }} ; do
+                PLACEHOLDER=$(echo "${IMG}" | sed 's/=.*//')
+                NEW_NAME=$(echo "${IMG}" | sed 's/[^=]*=//')
+                if [ -n "${{ inputs.image-override }}" ] ; then
+                  NEW_NAME="${{ inputs.image-override }}"
+                fi
+                yaml2json < "${FILE}" > /tmp/kust.json
+                jq --arg name "${PLACEHOLDER}" '[(.images // []) | .[] | .name == $name] | any' < /tmp/kust.json > /tmp/status
+                if [ $(cat /tmp/status) = true ] ; then
+                  kustomize edit set image "${PLACEHOLDER}=${NEW_NAME}:${{ inputs.tag }}"
+                  echo "${DIR}" | sed 's,apps/\([^/]*\)/.*,\1,' >> /tmp/edited-dirs
+                  git add "kustomization.yaml"
+                fi
+              done
+            )
+          done
+          if ! [ -f /tmp/edited-dirs ] ; then
+            echo "No recipes found with any of '${{ inputs.images }}' in them."
+            exit 1
+          fi
+          EDITED="$(sort -u < /tmp/edited-dirs | tr '\n' ' ' | sed 's/ $//')"
+          echo "edited-recipes=${EDITED}" >> $GITHUB_OUTPUT
+      - name: Commit and PR to deployments
+        id: promote-pr
+        working-directory: deployments
+        run: |
+          set -x
+          git config --global user.email ops@ironcorelabs.com
+          git config --global user.name "Leeroy Travis"
+          THISREPO="$(basename ${{ github.repository }})"
+          NEW_BRANCH="${THISREPO}-${{ inputs.tag }}"
+          echo "branch=${NEW_BRANCH}" >> "$GITHUB_OUTPUT"
+          git checkout -b "${NEW_BRANCH}"
+          COMMIT_MSG="Upgrade: [ ${THISREPO} -> ${{ inputs.tag }} ]"
+          git commit -m "${COMMIT_MSG}"
+          git push -u origin "${NEW_BRANCH}"
 
-    # Comment on the original software PR, pointing to the new deployments PR.
-    - name: Comment on the software PR
-      if: "${{ steps.software-pr.outputs.pr != ''}}"
-      working-directory: software
-      run: |
-        set -x
-        rm -f /tmp/body.txt
-        echo "Created IronCoreLabs/deployments#${{ steps.promote-pr.outputs.pr }} to deploy this build." >> /tmp/body.txt
-        gh pr comment -F /tmp/body.txt ${{ steps.software-pr.outputs.pr }}
+          # If we can't find the originating PR, it must mean the change came from automation, and we should auto-promote.
+          if [ -z "${{ steps.software-pr.outputs.pr }}" ] ; then
+            LABELS="--label auto-promote"
+          fi
+          AUTHOR="${{ steps.software-pr.outputs.author }}"
+          if [ -n "$AUTHOR" ] ; then
+            ASSIGNEE="--assignee $AUTHOR --reviewer $AUTHOR"
+          fi
+          gh pr create --fill $ASSIGNEE $LABELS
+          PR=$(gh pr view --json number --jq .number)
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
 
-    # Kick off the staging process.
-    - name: Stage the PR
-      working-directory: deployments
-      run: gh workflow run stage.yaml -F pr_branch=${{ steps.promote-pr.outputs.branch }}
+      # Comment on the original software PR, pointing to the new deployments PR.
+      - name: Comment on the software PR
+        if: "${{ steps.software-pr.outputs.pr != ''}}"
+        working-directory: software
+        run: |
+          set -x
+          rm -f /tmp/body.txt
+          echo "Created IronCoreLabs/deployments#${{ steps.promote-pr.outputs.pr }} to deploy this build." >> /tmp/body.txt
+          gh pr comment -F /tmp/body.txt ${{ steps.software-pr.outputs.pr }}
+
+      # Kick off the staging process.
+      - name: Stage the PR
+        working-directory: deployments
+        run: gh workflow run stage.yaml -F pr_branch=${{ steps.promote-pr.outputs.branch }}
 
   depot:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-    # Update the local dev clusters to use the new container.
-    - name: Check out depot
-      uses: actions/checkout@v4
-      with:
-        repository: IronCoreLabs/depot
-        path: depot
-        token: ${{ secrets.WORKFLOW_PAT }}
-    - name: Update local dev clusters
-      id: update-depot
-      working-directory: depot/local-dev-cluster
-      run: |
-        set -x
-        for IMG in ${{ inputs.images }} ; do
-          IMG_NAME=$(echo "${IMG}" | sed 's/[^=]*=//')
-          if [ -n "${{ inputs.image-override }}" ] ; then
-            IMG_NAME="${{ inputs.image-override }}"
+      # Update the local dev clusters to use the new container.
+      - name: Check out depot
+        uses: actions/checkout@v5
+        with:
+          repository: IronCoreLabs/depot
+          path: depot
+          token: ${{ secrets.WORKFLOW_PAT }}
+      - name: Update local dev clusters
+        id: update-depot
+        working-directory: depot/local-dev-cluster
+        run: |
+          set -x
+          for IMG in ${{ inputs.images }} ; do
+            IMG_NAME=$(echo "${IMG}" | sed 's/[^=]*=//')
+            if [ -n "${{ inputs.image-override }}" ] ; then
+              IMG_NAME="${{ inputs.image-override }}"
+            fi
+            if grep "${IMG_NAME}" Tiltfile ; then
+              sed "s,\(FROM ${IMG_NAME}\):[a-zA-Z0-9_.-]*,\\1:${{ inputs.tag }}," < Tiltfile > Tiltfile.new
+              mv Tiltfile.new Tiltfile
+              touch /tmp/changed-depot
+            fi
+          done
+          if [ -f /tmp/changed-depot ] ; then
+            git add Tiltfile
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-          if grep "${IMG_NAME}" Tiltfile ; then
-            sed "s,\(FROM ${IMG_NAME}\):[a-zA-Z0-9_.-]*,\\1:${{ inputs.tag }}," < Tiltfile > Tiltfile.new
-            mv Tiltfile.new Tiltfile
-            touch /tmp/changed-depot
-          fi
-        done
-        if [ -f /tmp/changed-depot ] ; then
-          git add Tiltfile
-          echo "changed=true" >> "$GITHUB_OUTPUT"
-        fi
-    - name: Commit and push to depot
-      if: "${{ steps.update-depot.outputs.changed == 'true' }}"
-      working-directory: depot
-      run: |
-        git config --global user.email ops@ironcorelabs.com
-        git config --global user.name "Leeroy Travis"
-        COMMIT_MSG="Upgrade local-dev-cluster: [ ${THISREPO} -> ${{ inputs.tag }} ]"
-        git commit -m "${COMMIT_MSG}"
-        TRIES=0
-        # If git push fails, it's hopefully just a concurrent update that we can retry.
-        while ! git push ; do
-          TRIES=$(expr ${TRIES} + 1)
-          if [ "${TRIES}" -ge 5 ] ; then
-            break
-          fi
-          git pull
-          sleep 30
-        done
+      - name: Commit and push to depot
+        if: "${{ steps.update-depot.outputs.changed == 'true' }}"
+        working-directory: depot
+        run: |
+          git config --global user.email ops@ironcorelabs.com
+          git config --global user.name "Leeroy Travis"
+          COMMIT_MSG="Upgrade local-dev-cluster: [ ${THISREPO} -> ${{ inputs.tag }} ]"
+          git commit -m "${COMMIT_MSG}"
+          TRIES=0
+          # If git push fails, it's hopefully just a concurrent update that we can retry.
+          while ! git push ; do
+            TRIES=$(expr ${TRIES} + 1)
+            if [ "${TRIES}" -ge 5 ] ; then
+              break
+            fi
+            git pull
+            sleep 30
+          done

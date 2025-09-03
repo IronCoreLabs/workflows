@@ -34,10 +34,10 @@ on:
       os_matrix:
         description: "JSON list of OSs to use for `runs-on`."
         required: false
-        default: '["buildjet-2vcpu-ubuntu-2204", "buildjet-4vcpu-ubuntu-2204-arm"]'
+        default: '["ubuntu-24.04", "ubuntu-24.04-arm"]'
         type: string
       matrix_include:
-        description: "Specific combinations to add to the build matrix. Available values are: os, build_args, rust_target. Ex [{os: ubuntu-22.04, rust_target: x86_64-unknown-linux-musl}]"
+        description: "Specific combinations to add to the build matrix. Available values are: os, build_args, rust_target. Ex [{os: ubuntu-24.04, rust_target: x86_64-unknown-linux-musl}]"
         required: false
         default: "[]"
         type: string
@@ -65,7 +65,7 @@ jobs:
         rust_target: "${{ fromJSON(inputs.build_matrix_rust_target) }}"
         include: ${{ fromJSON(inputs.matrix_include) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - id: rust_root
         run: |
           if [ -n "${{ inputs.rust_root }}" ] ; then
@@ -102,11 +102,6 @@ jobs:
           echo "SCCACHE_S3_USE_SSL=true" >> $GITHUB_ENV
           echo "SCCACHE_REGION=us-west-2" >> $GITHUB_ENV
       - uses: Swatinem/rust-cache@v2
-        if: startsWith(matrix.os, 'buildjet')
-        with:
-          cache-provider: buildjet
-      - uses: Swatinem/rust-cache@v2
-        if: startsWith(matrix.os, 'buildjet') != true
         with:
           cache-provider: github
       - name: Set Rust target

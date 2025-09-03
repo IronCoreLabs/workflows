@@ -73,7 +73,7 @@ Repeat this process for the "Dependabot" secrets, updating "WORKFLOW_PAT".
 
 We have a personal access token (PAT) that we use to authenticate to Docker Hub. Its purpose is to bypass rate limits on pulls
 from Docker Hub. It shouldn't be necessary on GitHub-owned runners, because they have a special deal with Docker. But on other
-runners, especially buildjet, it's important.
+runners it's important.
 
 The PAT is stored as an organization secret in GitHub, named `DOCKERHUB_TOKEN`. It corresponds to login information kept in
 `gdrive/IronCore Engineering/IT_Info/leeroy-travis/docker-hub-info.txt.iron`.

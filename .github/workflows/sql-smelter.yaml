@@ -171,12 +171,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Checkout sql-smelter repository
         id: checkout-sql-smelter
         continue-on-error: true
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: IronCoreLabs/sql-smelter
           ref: ${{ needs.determine-branch.outputs.selected_branch }}
