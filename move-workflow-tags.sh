@@ -49,7 +49,7 @@ while IFS= read -r path; do
   changed_map["$name"]=1
 done < <(git diff --name-only "$DIFF_RANGE" -- .github/workflows/ 2>/dev/null || true)
 
-echo "Select workflows to bump (space-separated indices, or * for all changed) [commit: $COMMIT_ARG]:"
+echo "Select workflows to move tags for (space-separated indices, or * for all changed) [commit: $COMMIT_ARG]:"
 i=1
 for wf in "${workflows[@]}"; do
   mark=""
