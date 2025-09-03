@@ -84,3 +84,23 @@ To rotate the token:
 1. Issue a new PAT. It only needs read access to public repositories.
 1. Log in to GitHub.
 1. Edit the organization secrets for IronCoreLabs, and replace the value of `DOCKERHUB_TOKEN`.
+
+### Workflow Tag Bumping
+
+After making **non-breaking** changes to GitHub Actions workflows in `.github/workflows`, you can use the `bump-workflow-tags.sh` script to bump the corresponding tags automatically.
+
+**Usage:**
+
+```bash
+# Bump tags for workflows changed in the last commit
+./bump-workflow-tags.sh
+
+# Bump tags for a specific commit
+./bump-workflow-tags.sh <commit-hash>
+
+# Bump tags for a commit range
+./bump-workflow-tags.sh <start-commit>..<end-commit>
+```
+
+The script will indicate which workflows were changed in the commit(s) and allow you to choose which ones to move the tags for. It will then
+display all the commands to run and has the option to run them for you.
