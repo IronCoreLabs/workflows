@@ -235,14 +235,10 @@ jobs:
         with:
           keys: ${{ secrets.IRONHIDE_KEYS }}
           input: ${{ inputs.additional_decryption_files }}
-      - name: Configure gcloud
-        run: |
-          cat > .github/gcloud-auth.json <<EOF
-          ${{ secrets.GCLOUD_AUTH }}
-          EOF
-          gcloud auth activate-service-account --key-file .github/gcloud-auth.json
-          gcloud auth configure-docker --quiet
-          gcloud auth configure-docker us-docker.pkg.dev --quiet
+      - uses: "google-github-actions/auth@v3"
+        with:
+          service_account: depot-ci@ironcore-dev-1.iam.gserviceaccount.com
+          workload_identity_provider: projects/660542197445/locations/global/workloadIdentityPools/github-actions/providers/github-actions
       - name: Get canonical image name
         id: name
         run: |
@@ -338,14 +334,10 @@ jobs:
         with:
           # Either the workflow_dispatch ref, or the prerelease tag, whichever is set.
           ref: ${{ github.event.inputs.ref }}${{ github.event.release.tag_name }}
-      - name: Configure gcloud
-        run: |
-          cat > .github/gcloud-auth.json <<EOF
-          ${{ secrets.GCLOUD_AUTH }}
-          EOF
-          gcloud auth activate-service-account --key-file .github/gcloud-auth.json
-          gcloud auth configure-docker --quiet
-          gcloud auth configure-docker us-docker.pkg.dev --quiet
+      - uses: "google-github-actions/auth@v3"
+        with:
+          service_account: depot-ci@ironcore-dev-1.iam.gserviceaccount.com
+          workload_identity_provider: projects/660542197445/locations/global/workloadIdentityPools/github-actions/providers/github-actions
       - name: Get canonical image name
         id: name
         run: echo "canonical=$(echo ${{ needs.image.outputs.images }} | sed 's/ .*//')" >> "$GITHUB_OUTPUT"
