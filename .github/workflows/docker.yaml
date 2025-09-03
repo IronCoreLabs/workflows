@@ -177,6 +177,8 @@ jobs:
   docker:
     needs: image
     runs-on: ${{ matrix.runs_on }}
+    permissions:
+      id-token: write
     env:
       DOCKER_BUILDKIT: 1
       MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ vars.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
@@ -329,6 +331,8 @@ jobs:
   publish:
     needs: [docker, image]
     runs-on: ${{ inputs.other_jobs_runs_on }}
+    permissions:
+      id-token: write
     steps:
       - uses: actions/checkout@v5
         with:
