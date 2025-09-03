@@ -74,7 +74,7 @@ on:
 jobs:
   # This job determines if we should run at all.
   skip:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       skip: ${{ steps.skip.outputs.skip }}
     if: github.event_name != 'pull_request'
@@ -90,16 +90,16 @@ jobs:
           fi
 
   check-versions:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout own repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           token: ${{ secrets.WORKFLOW_PAT }}
           path: self
       - name: Checkout workflows repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: IronCoreLabs/workflows
           ref: ${{ inputs.workflows_repo_ref }}
@@ -111,16 +111,16 @@ jobs:
 
   bump:
     needs: skip
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: ${{ !needs.skip.outputs.skip && github.event_name != 'pull_request'}}
     steps:
       - name: Checkout own repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           token: ${{ secrets.WORKFLOW_PAT }}
           path: self
       - name: Checkout workflows repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: IronCoreLabs/workflows
           ref: ${{ inputs.workflows_repo_ref }}

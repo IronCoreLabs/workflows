@@ -75,7 +75,6 @@ on:
 jobs:
   # Assigns some variables, because GHA doesn't expand variables in inputs.*.default.
   vars:
-    # swap to buildjet version once available
     runs-on: ubuntu-24.04
     outputs:
       rust_root: ${{ steps.rust_root.outputs.rust_root }}
@@ -111,7 +110,7 @@ jobs:
           echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: |
@@ -170,7 +169,7 @@ jobs:
           echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: |
@@ -236,7 +235,7 @@ jobs:
           echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: IronCoreLabs/rust-toolchain@v1
         with:
           components: rustfmt
@@ -274,7 +273,7 @@ jobs:
           echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: |

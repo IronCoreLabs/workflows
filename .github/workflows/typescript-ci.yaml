@@ -63,7 +63,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: github.event_name != 'issue_comment'
     env:
       NODE_OPTIONS: ${{ inputs.node_options }}
@@ -75,10 +75,10 @@ jobs:
       run:
         working-directory: ${{ env.UNDER_TEST_FOLDER }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           path: ${{ env.UNDER_TEST_FOLDER }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: ${{ inputs.smelter_required }}
         with:
           repository: IronCoreLabs/sql-smelter
@@ -92,7 +92,7 @@ jobs:
           crate: refinery_cli
           accesskey: ${{ vars.TOOL_CACHE_ACCESS_KEY_ID }}
           secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
-          os: ubuntu-22.04
+          os: ubuntu-24.04
       - name: Decrypt ironhide files
         uses: IronCoreLabs/ironhide-actions/decrypt@v3
         if: ${{ inputs.files_to_decrypt != '' }}

@@ -39,7 +39,7 @@ on:
 jobs:
   # Assigns some variables, because GHA doesn't expand variables in inputs.*.default.
   vars:
-    runs-on: buildjet-2vcpu-ubuntu-2204
+    runs-on: ubuntu-24.04
     outputs:
       rust_root: ${{ steps.rust_root.outputs.rust_root }}
     steps:
@@ -53,7 +53,7 @@ jobs:
           echo "rust_root=$root" >> $GITHUB_OUTPUT
 
   cargo-check:
-    runs-on: buildjet-2vcpu-ubuntu-2204
+    runs-on: ubuntu-24.04
     needs: vars
     env:
       SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET_ACCESS_KEY }}
@@ -67,7 +67,7 @@ jobs:
         rust_target: "${{ fromJSON(inputs.rust_targets) }}"
         include: ${{ fromJSON(inputs.matrix_include) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Configure git ssh access
         run: |
           mkdir -p "${HOME}/.ssh"
@@ -91,7 +91,7 @@ jobs:
           crate: sccache
           accesskey: ${{ vars.TOOL_CACHE_ACCESS_KEY_ID }}
           secretkey: ${{ env.TOOL_CACHE_SECRET_KEY }}
-          os: buildjet-2vcpu-ubuntu-2204
+          os: ubuntu-24.04
           version: latest
       - name: Setup sccache env variables
         if: env.SCCACHE_AWS_SECRET != ''
@@ -105,7 +105,7 @@ jobs:
           echo "SCCACHE_REGION=us-west-2" >> $GITHUB_ENV
       - uses: Swatinem/rust-cache@v2
         with:
-          cache-provider: buildjet
+          cache-provider: github
       - if: ${{ matrix.rust_target == '' }}
         run: cargo check --all-features --all-targets
       - if: ${{ matrix.rust_target != '' }}

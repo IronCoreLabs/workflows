@@ -24,15 +24,15 @@ on:
 
 jobs:
   check_version:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout own repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           token: ${{ secrets.WORKFLOW_PAT }}
           path: self
       - name: Checkout workflows repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: IronCoreLabs/workflows
           ref: ${{ inputs.workflows_repo_ref }}
