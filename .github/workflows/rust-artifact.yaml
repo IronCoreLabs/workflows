@@ -34,7 +34,7 @@ on:
       os_matrix:
         description: "JSON list of OSs to use for `runs-on`."
         required: false
-        default: '["ubuntu-24.04", "ubuntu-24.04-arm"]'
+        default: '["ubuntu-24.04", "icl-ubuntu-24-arm"]'
         type: string
       matrix_include:
         description: "Specific combinations to add to the build matrix. Available values are: os, build_args, rust_target. Ex [{os: ubuntu-24.04, rust_target: x86_64-unknown-linux-musl}]"
