@@ -163,7 +163,7 @@ jobs:
               RUNS_ON=ubuntu-24.04
               ;;
             arm64)
-              RUNS_ON=ubuntu-24.04-arm
+              RUNS_ON=icl-ubuntu-24-arm
               ;;
             *)
               echo "Unknown arch '$A'"
