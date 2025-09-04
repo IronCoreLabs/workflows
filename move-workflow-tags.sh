@@ -41,6 +41,7 @@ for wf in "${workflows[@]}"; do
   latest_tag["$wf"]="$best"
 done
 
+# Detect changes in workflow YAMLs
 declare -A changed_map=()
 while IFS= read -r path; do
   [[ -z "$path" ]] && continue
@@ -48,6 +49,16 @@ while IFS= read -r path; do
   name="${base%.*}"
   changed_map["$name"]=1
 done < <(git diff --name-only "$DIFF_RANGE" -- .github/workflows/ 2>/dev/null || true)
+
+# Detect changes in related helper scripts under .github/
+while IFS= read -r path; do
+  [[ -z "$path" ]] && continue
+  base=$(basename "$path")
+  prefix="${base%%.*}"   # e.g. bump-version.bump.sh → bump-version
+  if [[ " ${workflows[*]} " == *" $prefix "* ]]; then
+    changed_map["$prefix"]=1
+  fi
+done < <(git diff --name-only "$DIFF_RANGE" -- .github/ 2>/dev/null || true)
 
 echo "Select workflows to move tags for (space-separated indices, or * for all changed) [commit: $COMMIT_ARG]:"
 i=1
