@@ -348,6 +348,10 @@ jobs:
         with:
           service_account: depot-ci@ironcore-dev-1.iam.gserviceaccount.com
           workload_identity_provider: projects/660542197445/locations/global/workloadIdentityPools/github-actions/providers/github-actions
+      - name: Configure Docker
+        run: |
+          gcloud auth configure-docker --quiet
+          gcloud auth configure-docker us-docker.pkg.dev --quiet
       - name: Get canonical image name
         id: name
         run: echo "canonical=$(echo ${{ needs.image.outputs.images }} | sed 's/ .*//')" >> "$GITHUB_OUTPUT"
