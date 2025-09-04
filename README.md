@@ -87,7 +87,7 @@ To rotate the token:
 
 ### Workflow Tag Bumping
 
-After making **non-breaking** changes to GitHub Actions workflows in `.github/workflows`, you can use the `move-workflow-tags.sh` script to bump the corresponding tags automatically.
+After making **non-breaking** changes to GitHub Actions workflows in `.github/workflows`, you can use the `move-workflow-tags.sh` script to get commands to bump the corresponding tags.
 
 **Usage:**
 
@@ -103,4 +103,4 @@ After making **non-breaking** changes to GitHub Actions workflows in `.github/wo
 ```
 
 The script will indicate which workflows were changed in the commit(s) and allow you to choose which ones to move the tags for. It will then
-display all the commands to run and has the option to run them for you.
+display all the commands to run.
