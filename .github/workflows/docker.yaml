@@ -279,6 +279,8 @@ jobs:
         run: |
           docker save -o /tmp/docker.tar "${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
           clamscan /tmp/docker.tar
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v3
       - name: Push it!
         run: docker push "${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
       - name: Tag and push additional image
