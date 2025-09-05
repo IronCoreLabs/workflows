@@ -58,7 +58,7 @@ if [ -z "${RELEASEVERS}" ] ; then
         fi
         ;;
     esac
-fia
+fi
 # The prefix is there to support Go's release naming conventions.
 echo "release=${BUMP_VERSION_RELEASE_PREFIX}${RELEASEVERS}" >> "$GITHUB_OUTPUT"
 
