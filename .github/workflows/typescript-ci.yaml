@@ -53,6 +53,11 @@ on:
         description: 'A JS array list of additional bash commands to run after the final step, ex "["./build.js", "yarn run compile"]".'
         required: false
         default: ""
+      modern_yarn:
+        type: boolean
+        description: 'Use Modern Yarn (v2+). If false use Classic (v1.x).'
+        required: false
+        default: false
     secrets:
       IRONHIDE_KEYS:
         description: "Keys to use when decrypting optional ironhide files."
@@ -110,6 +115,11 @@ jobs:
         run: |
           sudo apt update
           sudo apt install ${{ inputs.additional_system_deps }}
+      - name: Set yarn mode
+        if: ${{ inputs.modern_yarn }}
+        run: |
+          corepack enable
+          yarn set version berry
       - name: Install modules
         run: yarn
       - name: Run tests
