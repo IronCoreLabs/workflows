@@ -5,7 +5,7 @@
 
 # Mode can be "release" or "prerelease". See bump-version.yaml for details.
 
-set -ex
+set -e
 
 case "$#" in
 "2")
