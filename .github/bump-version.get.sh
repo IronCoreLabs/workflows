@@ -49,7 +49,10 @@ for FILE in ${VERSFILES} ; do
             # This isn't the root package.json, so we assume it depends on the package declared in the root package.json. We need to
             # get the root package's name.
             ROOTJSNAME="$(jq -re '.name' < package.json)"
-            VERS=$(jq -re ".dependencies[\"${ROOTJSNAME}\"]" < "${FILE}")
+            if ! VERS=$(jq -re ".dependencies[\"${ROOTJSNAME}\"]" < "${FILE}"); then
+                # This isn't directly dependant on the root package.json, so we assume we're in a monorepo (ie CB yarn workspaces).
+                VERS=$(jq -re '.version' < "${FILE}")
+            fi
             # Strip off any leading "^".
             VERS=${VERS/^/}
         fi
