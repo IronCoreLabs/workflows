@@ -28,7 +28,7 @@ jobs:
     steps:
       - name: Add initial comment
         id: add-comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.WORKFLOW_PAT }}
           script: |
@@ -65,7 +65,7 @@ jobs:
     steps:
       - name: Detect branch comment
         id: detect-comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.WORKFLOW_PAT }}
           script: |
@@ -140,7 +140,7 @@ jobs:
     steps:
       - name: Get branch to checkout
         id: get-branch
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.WORKFLOW_PAT }}
           script: |
@@ -184,7 +184,7 @@ jobs:
           token: ${{ secrets.WORKFLOW_PAT }}
       - name: Remove "checks not run" warning from comment
         if: steps.checkout-sql-smelter.outcome == 'success'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.WORKFLOW_PAT }}
           script: |
@@ -228,7 +228,7 @@ jobs:
 
       - name: Notify about checkout failure
         if: steps.checkout-sql-smelter.outcome == 'failure'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.WORKFLOW_PAT }}
           script: |
