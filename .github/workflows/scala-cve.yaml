@@ -26,6 +26,8 @@ jobs:
         env:
           MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ vars.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
           MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
+          OSSINDEX_SONATYPE_EMAIL: ${{ vars.OSSINDEX_SONATYPE_EMAIL }}
+          OSSINDEX_SONATYPE_API_KEY: ${{ secrets.OSSINDEX_SONATYPE_API_KEY }}
         run: sbt -Dhttps.protocols=TLSv1.2,TLSv1.1,TLSv1 dependencyCheckAggregate
       - name: Move/rename file
         run: mv ./target/scala-2.13/dependency-check-report.html ${{ steps.file_name.outputs.file_name }}
