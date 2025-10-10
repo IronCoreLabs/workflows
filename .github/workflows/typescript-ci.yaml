@@ -92,12 +92,9 @@ jobs:
           path: sql-smelter
       - name: Install refinery
         if: ${{ inputs.smelter_required }}
-        uses: IronCoreLabs/rust-install@v0.1.2
+        uses: taiki-e/cache-cargo-install-action@v2
         with:
-          crate: refinery_cli
-          accesskey: ${{ vars.TOOL_CACHE_ACCESS_KEY_ID }}
-          secretkey: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
-          os: ubuntu-24.04
+          tool: refinery_cli
       - name: Decrypt ironhide files
         uses: IronCoreLabs/ironhide-actions/decrypt@v3
         if: ${{ inputs.files_to_decrypt != '' }}

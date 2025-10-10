@@ -86,13 +86,7 @@ jobs:
           targets: ${{ matrix.rust_target }}
       - name: Install sccache
         if: env.SCCACHE_AWS_SECRET != ''
-        uses: IronCoreLabs/rust-install@v0.1.2
-        with:
-          crate: sccache
-          accesskey: ${{ vars.TOOL_CACHE_ACCESS_KEY_ID }}
-          secretkey: ${{ env.TOOL_CACHE_SECRET_KEY }}
-          os: ubuntu-24.04
-          version: latest
+        uses: taiki-e/install-action@sccache
       - name: Setup sccache env variables
         if: env.SCCACHE_AWS_SECRET != ''
         run: |
