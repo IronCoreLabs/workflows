@@ -34,6 +34,7 @@ jobs:
         with:
           node-version: ${{ inputs.node_version }}
           registry-url: "https://registry.npmjs.org"
+      - run: yarn
       - name: Pre-publish steps
         if: ${{ inputs.pre_publish_steps }} != ""
         run: ${{inputs.pre_publish_steps}}
