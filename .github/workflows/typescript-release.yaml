@@ -15,6 +15,11 @@ on:
         required: false
         default: ""
         type: string
+      add_access_public:
+        description: "Add --access public to the publish command."
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   id-token: write # Required for OIDC
@@ -32,4 +37,4 @@ jobs:
       - name: Pre-publish steps
         if: ${{ inputs.pre_publish_steps }} != ""
         run: ${{inputs.pre_publish_steps}}
-      - run: npm publish
+      - run: npm publish ${{ inputs.add_access_public && '--access public' || '' }}
