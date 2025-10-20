@@ -3,9 +3,6 @@
 
 name: Typescript Release
 on:
-  release:
-    types:
-      - "created" # triggered by Bump Version creating a release
   workflow_call:
     inputs:
       node_version:
