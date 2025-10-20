@@ -18,7 +18,7 @@ on:
       add_access_public:
         description: "Add --access public to the publish command."
         required: false
-        default: false
+        default: true
         type: boolean
 
 permissions:
