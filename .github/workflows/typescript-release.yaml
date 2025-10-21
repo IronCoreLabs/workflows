@@ -34,15 +34,15 @@ jobs:
         with:
           node-version: ${{ inputs.node_version }}
           registry-url: "https://registry.npmjs.org"
-      - run: yarn
       # Need newer npm to use Trusted Publishing
-      - name: Update npm
-        run: sudo npm install -g npm@11.6.1; npm --version
+      - name: Use newer npm version
+        run: |
+          corepack prepare npm@11.6.1 --activate
+          corepack enable
+          which npm
+          npm --version
+      - run: yarn
       - name: Pre-publish steps
         if: ${{ inputs.pre_publish_steps }} != ""
         run: ${{inputs.pre_publish_steps}}
-      - run: |
-          npm --version
-          echo "$PATH"
-          which npm
       - run: npm publish ${{ inputs.add_access_public && '--access public' || '' }}
