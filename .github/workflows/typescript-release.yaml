@@ -34,6 +34,7 @@ jobs:
         with:
           node-version: ${{ inputs.node_version }}
           registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
       # Need newer npm to use Trusted Publishing
       - name: Use newer npm version
         run: |
