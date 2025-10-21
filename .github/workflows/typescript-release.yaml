@@ -41,4 +41,5 @@ jobs:
       - name: Pre-publish steps
         if: ${{ inputs.pre_publish_steps }} != ""
         run: ${{inputs.pre_publish_steps}}
+      - run: npm --version
       - run: npm publish ${{ inputs.add_access_public && '--access public' || '' }}
