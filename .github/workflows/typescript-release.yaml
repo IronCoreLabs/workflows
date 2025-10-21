@@ -38,9 +38,10 @@ jobs:
       # Need newer npm to use Trusted Publishing
       - name: Use newer npm version
         run: |
-          corepack prepare npm@11.6.1 --activate
-          corepack enable
-          which npm
+          sudo npm install -g npm@11.6.1
+          echo "/usr/local/bin" >> $GITHUB_PATH
+      - run: |
+          echo "$PATH"
           npm --version
       - run: yarn
       - name: Pre-publish steps
