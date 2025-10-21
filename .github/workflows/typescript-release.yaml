@@ -20,6 +20,10 @@ on:
         required: false
         default: true
         type: boolean
+      publish_working_directory:
+        description: "Where to run `npm publish` from"
+        required: true
+        type: string
 
 permissions:
   id-token: write # Required for OIDC
@@ -45,3 +49,4 @@ jobs:
         if: ${{ inputs.pre_publish_steps }} != ""
         run: ${{inputs.pre_publish_steps}}
       - run: npm publish ${{ inputs.add_access_public && '--access public' || '' }}
+        working-directory: ${{ inputs.publish_working_directory }}
