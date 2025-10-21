@@ -34,15 +34,12 @@ jobs:
         with:
           node-version: ${{ inputs.node_version }}
           registry-url: "https://registry.npmjs.org"
-          package-manager-cache: false
       # Need newer npm to use Trusted Publishing
       - name: Use newer npm version
         run: |
           sudo npm install -g npm@11.6.1
+          # Necessary to overwrite the previous global version
           echo "/usr/local/bin" >> $GITHUB_PATH
-      - run: |
-          echo "$PATH"
-          npm --version
       - run: yarn
       - name: Pre-publish steps
         if: ${{ inputs.pre_publish_steps }} != ""
