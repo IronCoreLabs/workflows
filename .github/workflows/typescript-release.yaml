@@ -34,6 +34,9 @@ jobs:
         with:
           node-version: ${{ inputs.node_version }}
           registry-url: "https://registry.npmjs.org"
+      # Need newer npm to use Trusted Publishing
+      - name: Update npm
+        run: sudo npm install -g npm@11.6.1
       - run: yarn
       - name: Pre-publish steps
         if: ${{ inputs.pre_publish_steps }} != ""
