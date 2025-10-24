@@ -1,0 +1,52 @@
+# Publish Typescript code to NPM. This will use Trusted Publishing
+# (https://docs.npmjs.com/trusted-publishers#supported-cicd-providers), so ensure it's set up for the calling repo.
+
+name: Typescript Release
+on:
+  workflow_call:
+    inputs:
+      node_version:
+        description: "What version of node should be used when running tests/publishing."
+        required: false
+        default: "20"
+        type: string
+      pre_publish_steps:
+        description: "Any steps to run before publishing begins (like `build.js; cd dist`)"
+        required: false
+        default: ""
+        type: string
+      add_access_public:
+        description: "Add --access public to the publish command."
+        required: false
+        default: true
+        type: boolean
+      publish_working_directory:
+        description: "Where to run `npm publish` from"
+        required: true
+        type: string
+
+permissions:
+  id-token: write # Required for OIDC
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ inputs.node_version }}
+          registry-url: "https://registry.npmjs.org"
+      # Need newer npm to use Trusted Publishing
+      - name: Use newer npm version
+        run: |
+          sudo npm install -g npm@11.6.1
+          # Necessary to overwrite the previous global version
+          echo "/usr/local/bin" >> $GITHUB_PATH
+      - run: yarn
+      - name: Pre-publish steps
+        if: ${{ inputs.pre_publish_steps }} != ""
+        run: ${{inputs.pre_publish_steps}}
+      - run: npm publish ${{ inputs.add_access_public && '--access public' || '' }}
+        working-directory: ${{ inputs.publish_working_directory }}
