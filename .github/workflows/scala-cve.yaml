@@ -31,7 +31,7 @@ jobs:
         run: sbt -Dhttps.protocols=TLSv1.2,TLSv1.1,TLSv1 dependencyCheckAggregate
       - name: Move/rename file
         run: mv ./target/scala-2.13/dependency-check-report.html ${{ steps.file_name.outputs.file_name }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: ${{ steps.file_name.outputs.file_name }}
           path: ${{ steps.file_name.outputs.file_name }}
