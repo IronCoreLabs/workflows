@@ -102,7 +102,7 @@ jobs:
           keys: ${{ secrets.IRONHIDE_KEYS }}
           input: ${{ inputs.files_to_decrypt }}
           working-directory: ${{ env.UNDER_TEST_FOLDER }}
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node_version }}
           cache: yarn
