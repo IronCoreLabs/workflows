@@ -18,7 +18,8 @@ fi
 
 # Find the version files in this directory or its descendants, but don't recurse too deep.
 # This line must be kept in sync with "bump-version.set.sh".
-VERSFILES=$(find . -maxdepth 3 ! -path ./.git/\* | grep -v /node_modules/ | grep -E '.*/(version|Cargo.toml|version.go|package.json|pom.xml|version.sbt|build.gradle.kts)$')
+# We exclude example directories because they shouldn't always depend on the latest version (it's normally unreleased)
+VERSFILES=$(find . -maxdepth 6 ! -path ./.git/\* | grep -v /node_modules/ | grep -v /example*/** | grep -E '.*/(version|Cargo.toml|version.go|package.json|pom.xml|version.sbt|build.gradle.kts)$')
 
 # Do we have at least one?
 if [ -z "${VERSFILES}" ] ; then
@@ -50,7 +51,7 @@ for FILE in ${VERSFILES} ; do
             VERS=$(jq -re '.version' < "${FILE}")
         else
             # This isn't the root package.json, so we assume it depends on the package declared in the root package.json. We need to
-            # Strip off any leading "^".
+            # strip off any leading "^".
             VERS=${VERS/^/}
         fi
         ;;
