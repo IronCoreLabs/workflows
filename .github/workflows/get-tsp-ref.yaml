@@ -3,7 +3,7 @@ name: Get TSP ref
 on:
   workflow_call:
     outputs:
-      firstword:
+      tsp_ref:
         description: "The ref of the TSP to use"
         value: ${{ jobs.get_ref.outputs.tenant-security-proxy }}
 jobs:
