@@ -1,0 +1,83 @@
+name: Get TSP ref
+
+on:
+  workflow_call:
+    outputs:
+      tsp_ref:
+        description: 'The ref of the TSP to use. Use a comment on the PR like this to change: `CI_branches: {"tenant-security-proxy": "some_branch"}`'
+        value: ${{ jobs.get_ref.outputs.tenant-security-proxy }}
+jobs:
+  # If your tests don't build against the default branch of TSP, you can change it by adding a command to the pull request. The
+  # comment should contain the string `CI_branches` and a JSON object like
+  # `{"tenant-security-proxy": "some_branch"}`. You can include formatting, prose, or a haiku,
+  # but no `{` or `}` characters. Example:
+  # CI_branches: {"tenant-security-proxy": "some_branch"}
+  get_ref:
+    # Only run if it's on a PR.
+    if: github.base_ref != ''
+    runs-on: ubuntu-latest
+    outputs:
+      tenant-security-proxy: ${{ steps.get_ref.outputs.tenant-security-proxy }}
+    steps:
+      - name: Add TSP to repo list
+        run: echo tenant-security-proxy >> repos
+      - name: Get PR number
+        id: get_pr
+        run: |
+          PR=$(jq -r .pull_request.number "${GITHUB_EVENT_PATH}")
+          echo "PR is ${PR}"
+          # Sanity check that ${PR} is a number.
+          test "${PR}" -ge 0
+          echo "pr=${PR}" >> "$GITHUB_OUTPUT"
+      - name: Find Comment
+        uses: peter-evans/find-comment@v4
+        id: find_comment
+        with:
+          issue-number: ${{ steps.get_pr.outputs.pr }}
+          body-includes: CI_branches
+      - name: Parse refs
+        if: steps.find_comment.outputs.comment-id != 0
+        id: get_ref
+        env:
+          COMMENT_BODY: ${{ steps.find_comment.outputs.comment-body }}
+        run: |
+          # Extract the JSON part of the comment into a file.
+          echo "${COMMENT_BODY}" | tr '\n' ' ' | sed -e 's,^[^{]*,,' -e 's,[^}]*$,,' > refs.json
+          echo "Got JSON:"
+          cat refs.json && echo ""
+
+          # Sanity check that all repos in the JSON comment are ones that we know about.
+          jq -r 'keys[]' < refs.json > extra_repos
+          for REPO in $(cat repos) ; do
+            grep -v "^${REPO}\$" < extra_repos > temp || true
+            mv temp extra_repos
+          done
+          if [ -s extra_repos ] ; then
+            echo "Unrecognized repositories:"
+            cat extra_repos
+            exit 1
+          fi
+
+          # Emit an output variable for each repo.
+          for REPO in $(cat repos) ; do
+            REF=$(jq -r '.["'"${REPO}"'"]' < refs.json)
+            if [ "${REF}" = "null" ] ; then
+              REF="main"
+            fi
+            echo "${REPO}: ${REF}"
+            echo "${REPO}=${REF}" >> "$GITHUB_OUTPUT"
+          done
+      - name: Post a reaction (parsed your comment)
+        if: steps.get_ref.outcome == 'success'
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          issue-number: ${{ steps.get_pr.outputs.pr }}
+          comment-id: ${{ steps.find_comment.outputs.comment-id }}
+          reactions: eyes
+      - name: Post a reaction (unparsed comment)
+        if: steps.get_ref.outcome == 'failure'
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          issue-number: ${{ steps.get_pr.outputs.pr }}
+          comment-id: ${{ steps.find_comment.outputs.comment-id }}
+          reactions: confused
