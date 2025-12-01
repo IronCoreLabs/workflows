@@ -55,10 +55,10 @@ jobs:
     env:
       UNDER_TEST_FOLDER: scala-repo
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           path: ${{ env.UNDER_TEST_FOLDER }}
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         if: ${{ inputs.smelter_required }}
         with:
           repository: IronCoreLabs/sql-smelter

@@ -27,12 +27,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout own repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           token: ${{ secrets.WORKFLOW_PAT }}
           path: self
       - name: Checkout workflows repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: IronCoreLabs/workflows
           ref: ${{ inputs.workflows_repo_ref }}

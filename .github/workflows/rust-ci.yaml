@@ -110,7 +110,7 @@ jobs:
           echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: |
@@ -163,7 +163,7 @@ jobs:
           echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: |
@@ -223,7 +223,7 @@ jobs:
           echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: IronCoreLabs/rust-toolchain@v1
         with:
           components: rustfmt
@@ -255,7 +255,7 @@ jobs:
           echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: |
