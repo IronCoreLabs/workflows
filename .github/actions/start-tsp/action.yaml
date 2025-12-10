@@ -82,7 +82,6 @@ runs:
   # Compute default tag = highest numeric major tag (e.g. "5")
   # Only if we DON'T have an override image.
   - name: Compute default TSP major tag
-    if: ${{ steps.get_ref.outputs.tenant-security-proxy == '' }}
     id: default_tag
     shell: bash
     run: |
@@ -91,17 +90,22 @@ runs:
       IMAGE="gcr.io/ironcore-images/tenant-security-proxy"
       echo "Computing default tag from: ${IMAGE}"
 
-      # List tags and keep only tags that are pure integers (major versions).
+      # List tags for this image. Each line may contain multiple tags separated by ';'
+      # Example: "5;5.1;5.1.2"
       gcloud container images list-tags "${IMAGE}" \
-        --format='get(tags)' \
-        --filter='tags ~ ^[0-9]+$' > all_tags_raw
+        --format='get(tags)' > all_tags_raw
 
       if [ ! -s all_tags_raw ]; then
         echo "No tags returned by gcloud for ${IMAGE}." >&2
         exit 1
       fi
 
-      tr ',' '\n' < all_tags_raw | sed '/^$/d' | sort -n | tail -n1 > max_tag
+      # Split on ';', keep only tags that are strictly digits, sort numerically, take the largest
+      tr ';' '\n' < all_tags_raw \
+        | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
+        | grep -E '^[0-9]+$' \
+        | sort -n \
+        | tail -n1 > max_tag || true
 
       if [ ! -s max_tag ]; then
         echo "No numeric major tags found for ${IMAGE}." >&2
