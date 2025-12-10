@@ -142,3 +142,4 @@ runs:
       set -euo pipefail
       docker run -d --env-file "${{ inputs.env-file-path }}" -p 7777:7777 -p 9000:9000 "${{ steps.decide_image.outputs.image }}"
       timeout 700 bash -c 'while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:9000/ready)" =~ ''[01346-9][0-9][0-9]'' ]]; do sleep 5; done' || false
+      echo "TSP is running!"
