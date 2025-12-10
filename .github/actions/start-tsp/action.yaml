@@ -82,6 +82,7 @@ runs:
   # Compute default tag = highest numeric major tag (e.g. "5")
   # Only if we DON'T have an override image.
   - name: Compute default TSP major tag
+    if: ${{ steps.get_ref.outputs.tenant-security-proxy == '' }}
     id: default_tag
     shell: bash
     run: |
