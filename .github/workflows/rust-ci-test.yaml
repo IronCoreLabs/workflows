@@ -40,3 +40,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: IronCoreLabs/workflows/.github/actions/start-tsp@start-tsp-action
+        with:
+          gcloud-auth: ${{ secrets.GCLOUD_AUTH }}
+          env-file-path: .github/.env.integration.iron
