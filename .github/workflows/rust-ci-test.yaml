@@ -39,7 +39,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Decrypt TSP integration keys
+        uses: IronCoreLabs/ironhide-actions/decrypt@v3
+        with:
+          keys: ${{ secrets.IRONHIDE_KEYS }}
+          input: .github/.env.integration.iron
       - uses: IronCoreLabs/workflows/.github/actions/start-tsp@start-tsp-action
         with:
           gcloud-auth: ${{ secrets.GCLOUD_AUTH }}
-          env-file-path: .github/.env.integration.iron
+          env-file-path: .github/.env.integration
