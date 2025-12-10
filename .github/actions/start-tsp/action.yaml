@@ -65,9 +65,7 @@ runs:
       issue-number: ${{ steps.get_pr.outputs.pr }}
       comment-id: ${{ steps.find_comment.outputs.comment-id }}
       reactions: confused
-  # Configure gcloud if we have an override image (default is publically accessible)
   - name: Configure gcloud
-    if: ${{ steps.get_ref.outputs.tenant-security-proxy != '' }}
     shell: bash
     run: |
       set -euo pipefail
