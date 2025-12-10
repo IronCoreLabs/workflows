@@ -8,7 +8,7 @@ inputs:
     required: true
   gcloud-auth:
     description: >
-      Service account JSON used to authenticate gcloud (e.g. ${{ secrets.GCLOUD_AUTH }}). Must have permission to read gcr.io/ironcore-images/tenant-security-proxy.
+      Service account JSON used to authenticate gcloud (e.g. `secrets.GCLOUD_AUTH`). Must have permission to read gcr.io/ironcore-images/tenant-security-proxy.
     required: true
 
 runs:
