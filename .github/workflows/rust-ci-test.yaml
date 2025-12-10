@@ -34,3 +34,9 @@ jobs:
         ]
       additional_system_deps: libzmq3-dev
     secrets: inherit
+
+  start_tsp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: IronCoreLabs/workflows/actions/start-tsp.yaml@start-tsp-action
