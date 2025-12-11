@@ -1,0 +1,146 @@
+# These reusable steps start a TSP docker image in the background and wait for it to report healthy
+# By default it will start the latest (highest major version) TSP from the public GAR.
+# This can be overridden with a PR comment in the following form specifying the full GAR image name/tag:
+# `TSP_IMAGE: {"tenant_security_proxy": "gcr.io/ironcore-dev-1/tenant-security-proxy:5.1.3-rc.0"}`
+# This overridden image can be from either our public or private artifact repositories.
+#
+# Example usage (be sure to decrypt the env file first):
+# - name: Start TSP
+#   uses: IronCoreLabs/workflows/.github/actions/start-tsp@start-tsp-v1
+#   with:
+#     gcloud-auth: ${{ secrets.GCLOUD_AUTH }}
+#     env-file-path: .github/.env.integration
+
+name: Get TSP image and run in background
+description: >
+  Determine which tenant-security-proxy image to use (optionally from a TSP_IMAGE PR comment, otherwise highest major tag from gcr.io/ironcore-images/tenant-security-proxy), then start the proxy and wait for it to become ready.
+
+inputs:
+  env-file-path:
+    description: Path to the env file to pass to the TSP container (e.g. .github/.env.integration)
+    required: true
+  gcloud-auth:
+    description: >
+      Service account JSON used to authenticate gcloud (e.g. `secrets.GCLOUD_AUTH`). Must have permission to read gcr.io/ironcore-images/tenant-security-proxy.
+    required: true
+
+runs:
+  using: composite
+  steps:
+  # PR-only: get PR number so we can search comments
+  - name: Get PR number
+    id: get_pr
+    if: ${{ github.event_name == 'pull_request' }}
+    shell: bash
+    run: |
+      PR=$(jq -r .pull_request.number "${GITHUB_EVENT_PATH}")
+      echo "PR is ${PR}"
+      # Sanity check that ${PR} is a number.
+      test "${PR}" -ge 0
+      echo "pr=${PR}" >> "$GITHUB_OUTPUT"
+  - name: Find Comment
+    uses: peter-evans/find-comment@v4
+    id: find_comment
+    if: ${{ github.event_name == 'pull_request' }}
+    with:
+      issue-number: ${{ steps.get_pr.outputs.pr }}
+      body-includes: TSP_IMAGE
+  # Parse TSP_IMAGE JSON, but only care about "tenant-security-proxy"
+  # The value, if present, is assumed to be a full image reference.
+  - name: Parse TSP_IMAGE comment (optional override)
+    if: ${{ github.event_name == 'pull_request' && steps.find_comment.outputs.comment-id != 0 }}
+    id: get_ref
+    shell: bash
+    env:
+      COMMENT_BODY: ${{ steps.find_comment.outputs.comment-body }}
+    run: |
+      # Extract the JSON part of the comment into a file.
+      echo "${COMMENT_BODY}" | tr '\n' ' ' | sed -e 's,^[^{]*,,' -e 's,[^}]*$,,' > refs.json
+      echo "Got JSON:"
+      cat refs.json && echo ""
+
+      # Extract the tenant-security-proxy value (full image ref or empty).
+      TSP_IMAGE=$(jq -r '."tenant-security-proxy" // empty' refs.json)
+
+      echo "tenant-security-proxy override image: ${TSP_IMAGE}"
+      echo "tenant-security-proxy=${TSP_IMAGE}" >> "$GITHUB_OUTPUT"
+  - name: Post a reaction (parsed your comment)
+    if: ${{ github.event_name == 'pull_request' && steps.get_ref.outcome == 'success' }}
+    uses: peter-evans/create-or-update-comment@v5
+    with:
+      issue-number: ${{ steps.get_pr.outputs.pr }}
+      comment-id: ${{ steps.find_comment.outputs.comment-id }}
+      reactions: eyes
+  - name: Post a reaction (unparsed comment)
+    if: ${{ github.event_name == 'pull_request' && steps.get_ref.outcome == 'failure' }}
+    uses: peter-evans/create-or-update-comment@v5
+    with:
+      issue-number: ${{ steps.get_pr.outputs.pr }}
+      comment-id: ${{ steps.find_comment.outputs.comment-id }}
+      reactions: confused
+  - name: Configure gcloud
+    shell: bash
+    run: |
+      set -euo pipefail
+      mkdir -p .github
+      cat > .github/gcloud-auth.json <<EOF
+      ${{ inputs.gcloud-auth }}
+      EOF
+      gcloud auth activate-service-account --key-file .github/gcloud-auth.json
+      gcloud auth configure-docker --quiet
+  # Compute default tag = highest numeric major tag (e.g. "5")
+  # Only if we DON'T have an override image.
+  - name: Compute default TSP major tag
+    if: ${{ steps.get_ref.outputs.tenant-security-proxy == '' }}
+    id: default_tag
+    shell: bash
+    run: |
+      set -euo pipefail
+      IMAGE="gcr.io/ironcore-images/tenant-security-proxy"
+      echo "Computing default tag from: ${IMAGE}"
+      # List tags for this image. Each line may contain multiple tags separated by ';'
+      # Example: "5;5.1;5.1.2"
+      gcloud container images list-tags "${IMAGE}" \
+        --format='get(tags)' > all_tags_raw
+      if [ ! -s all_tags_raw ]; then
+        echo "No tags returned by gcloud for ${IMAGE}." >&2
+        exit 1
+      fi
+      # Split on ';', keep only tags that are strictly digits, sort numerically, take the largest
+      tr ';' '\n' < all_tags_raw \
+        | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
+        | grep -E '^[0-9]+$' \
+        | sort -n \
+        | tail -n1 > max_tag || true
+      if [ ! -s max_tag ]; then
+        echo "No numeric major tags found for ${IMAGE}." >&2
+        exit 1
+      fi
+      TAG=$(cat max_tag)
+      echo "Default major tag: ${TAG}"
+      echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+  - name: Decide final TSP image (override vs default)
+    id: decide_image
+    shell: bash
+    env:
+      DEFAULT_TAG: ${{ steps.default_tag.outputs.tag }}
+      OVERRIDE_IMAGE: ${{ steps.get_ref.outputs.tenant-security-proxy }}
+    run: |
+      set -euo pipefail
+      echo "Override image from comment (may be empty): '${OVERRIDE_IMAGE}'"
+      if [ -n "${OVERRIDE_IMAGE}" ]; then
+        IMAGE="${OVERRIDE_IMAGE}"
+      else
+        IMAGE="gcr.io/ironcore-images/tenant-security-proxy:${DEFAULT_TAG}"
+      fi
+      echo "Using TSP image: ${IMAGE}"
+      echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+  - name: Start the TSP
+    shell: bash
+    env:
+      TSP_IMAGE: ${{ steps.decide_image.outputs.image }}
+    run: |
+      set -euo pipefail
+      docker run -d --env-file "${{ inputs.env-file-path }}" -p 7777:7777 -p 9000:9000 "${{ steps.decide_image.outputs.image }}"
+      timeout 700 bash -c 'while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:9000/ready)" =~ ''[01346-9][0-9][0-9]'' ]]; do sleep 5; done' || false
+      echo "TSP is running!"

@@ -34,3 +34,18 @@ jobs:
         ]
       additional_system_deps: libzmq3-dev
     secrets: inherit
+
+  start_tsp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Decrypt TSP integration keys
+        uses: IronCoreLabs/ironhide-actions/decrypt@v3
+        with:
+          keys: ${{ secrets.IRONHIDE_KEYS }}
+          input: .github/.env.integration.iron
+      - name: Start TSP
+        uses: IronCoreLabs/workflows/.github/actions/start-tsp@start-tsp-action # TODO: change to tagged version
+        with:
+          gcloud-auth: ${{ secrets.GCLOUD_AUTH }}
+          env-file-path: .github/.env.integration
