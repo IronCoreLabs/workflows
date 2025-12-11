@@ -45,7 +45,7 @@ jobs:
           keys: ${{ secrets.IRONHIDE_KEYS }}
           input: .github/.env.integration.iron
       - name: Start TSP
-        uses: IronCoreLabs/workflows/.github/actions/start-tsp@start-tsp-action # TODO: change to tagged version
+        uses: IronCoreLabs/workflows/.github/actions/start-tsp@start-tsp-v1
         with:
           gcloud-auth: ${{ secrets.GCLOUD_AUTH }}
           env-file-path: .github/.env.integration
