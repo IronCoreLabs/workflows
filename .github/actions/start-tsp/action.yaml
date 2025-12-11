@@ -23,6 +23,10 @@ inputs:
     description: >
       Service account JSON used to authenticate gcloud (e.g. `secrets.GCLOUD_AUTH`). Must have permission to read gcr.io/ironcore-images/tenant-security-proxy.
     required: true
+  tsp-port:
+    description: What port the TSP should bind (defaults to 7777).
+    required: false
+    default: "7777"
 
 runs:
   using: composite
@@ -141,6 +145,6 @@ runs:
       TSP_IMAGE: ${{ steps.decide_image.outputs.image }}
     run: |
       set -euo pipefail
-      docker run -d --env-file "${{ inputs.env-file-path }}" -p 7777:7777 -p 9000:9000 "${{ steps.decide_image.outputs.image }}"
+      docker run -d --env-file "${{ inputs.env-file-path }}" -p ${{ inputs.tsp-port }}:7777 -p 9000:9000 "${{ steps.decide_image.outputs.image }}"
       timeout 700 bash -c 'while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:9000/ready)" =~ ''[01346-9][0-9][0-9]'' ]]; do sleep 5; done' || false
       echo "TSP is running!"
