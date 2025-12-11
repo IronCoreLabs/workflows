@@ -1,7 +1,7 @@
 # These reusable steps start a TSP docker image in the background and wait for it to report healthy
 # By default it will start the latest (highest major version) TSP from the public GAR.
 # This can be overridden with a PR comment in the following form specifying the full GAR image name/tag:
-# `TSP_IMAGE: {"tenant_security_proxy": "gcr.io/ironcore-dev-1/tenant-security-proxy:5.1.3-rc.0"}`
+# `TSP_IMAGE: {"tenant-security-proxy": "gcr.io/ironcore-dev-1/tenant-security-proxy:5.1.3-rc.0"}`
 # This overridden image can be from either our public or private artifact repositories.
 #
 # Example usage (be sure to decrypt the env file first):
