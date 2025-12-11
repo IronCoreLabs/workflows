@@ -1,4 +1,17 @@
-name: Get TSP image and start proxy
+# These reusable steps start a TSP docker image in the background and wait for it to report healthy
+# By default it will start the latest (highest major version) TSP from the public GAR.
+# This can be overridden with a PR comment in the following form specifying the full GAR image name/tag:
+# `TSP_IMAGE: {"tenant_security_proxy": "gcr.io/ironcore-dev-1/tenant-security-proxy:5.1.3-rc.0"}`
+# This overridden image can be from either our public or private artifact repositories.
+#
+# Example usage (be sure to decrypt the env file first):
+# - name: Start TSP
+#   uses: IronCoreLabs/workflows/.github/actions/start-tsp@start-tsp-v1
+#   with:
+#     gcloud-auth: ${{ secrets.GCLOUD_AUTH }}
+#     env-file-path: .github/.env.integration
+
+name: Get TSP image and run in background
 description: >
   Determine which tenant-security-proxy image to use (optionally from a TSP_IMAGE PR comment, otherwise highest major tag from gcr.io/ironcore-images/tenant-security-proxy), then start the proxy and wait for it to become ready.
 
@@ -33,7 +46,7 @@ runs:
       issue-number: ${{ steps.get_pr.outputs.pr }}
       body-includes: TSP_IMAGE
   # Parse TSP_IMAGE JSON, but only care about "tenant-security-proxy"
-  # The value, if present, is assumed to be a FULL image reference.
+  # The value, if present, is assumed to be a full image reference.
   - name: Parse TSP_IMAGE comment (optional override)
     if: ${{ github.event_name == 'pull_request' && steps.find_comment.outputs.comment-id != 0 }}
     id: get_ref
@@ -69,12 +82,10 @@ runs:
     shell: bash
     run: |
       set -euo pipefail
-
       mkdir -p .github
       cat > .github/gcloud-auth.json <<EOF
       ${{ inputs.gcloud-auth }}
       EOF
-
       gcloud auth activate-service-account --key-file .github/gcloud-auth.json
       gcloud auth configure-docker --quiet
   # Compute default tag = highest numeric major tag (e.g. "5")
@@ -85,32 +96,26 @@ runs:
     shell: bash
     run: |
       set -euo pipefail
-
       IMAGE="gcr.io/ironcore-images/tenant-security-proxy"
       echo "Computing default tag from: ${IMAGE}"
-
       # List tags for this image. Each line may contain multiple tags separated by ';'
       # Example: "5;5.1;5.1.2"
       gcloud container images list-tags "${IMAGE}" \
         --format='get(tags)' > all_tags_raw
-
       if [ ! -s all_tags_raw ]; then
         echo "No tags returned by gcloud for ${IMAGE}." >&2
         exit 1
       fi
-
       # Split on ';', keep only tags that are strictly digits, sort numerically, take the largest
       tr ';' '\n' < all_tags_raw \
         | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
         | grep -E '^[0-9]+$' \
         | sort -n \
         | tail -n1 > max_tag || true
-
       if [ ! -s max_tag ]; then
         echo "No numeric major tags found for ${IMAGE}." >&2
         exit 1
       fi
-
       TAG=$(cat max_tag)
       echo "Default major tag: ${TAG}"
       echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
@@ -122,15 +127,12 @@ runs:
       OVERRIDE_IMAGE: ${{ steps.get_ref.outputs.tenant-security-proxy }}
     run: |
       set -euo pipefail
-
       echo "Override image from comment (may be empty): '${OVERRIDE_IMAGE}'"
-
       if [ -n "${OVERRIDE_IMAGE}" ]; then
         IMAGE="${OVERRIDE_IMAGE}"
       else
         IMAGE="gcr.io/ironcore-images/tenant-security-proxy:${DEFAULT_TAG}"
       fi
-
       echo "Using TSP image: ${IMAGE}"
       echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
   - name: Start the TSP
