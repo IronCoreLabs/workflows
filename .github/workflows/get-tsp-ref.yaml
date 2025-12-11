@@ -42,6 +42,10 @@ jobs:
           COMMENT_BODY: ${{ steps.find_comment.outputs.comment-body }}
         run: |
           # Extract the JSON part of the comment into a file.
+          # 1. Replace newlines with spaces
+          # 2. Remove everything before the first `{`
+          # 3. Remove everything after the last `}`
+          # 4. Store the result in `refs.json`
           echo "${COMMENT_BODY}" | tr '\n' ' ' | sed -e 's,^[^{]*,,' -e 's,[^}]*$,,' > refs.json
           echo "Got JSON:"
           cat refs.json && echo ""
