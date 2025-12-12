@@ -106,8 +106,7 @@ runs:
       # List the tags sorted by timestamp
       gcloud container images list-tags "${IMAGE}" \
         --format='get(tags)' \
-        --filter='tags:*' \
-        --sort-by=~TIMESTAMP > all_tags_raw
+        --filter='tags:*' > all_tags_raw
 
       if [ ! -s all_tags_raw ]; then
         echo "No tags returned by gcloud for ${IMAGE}." >&2
