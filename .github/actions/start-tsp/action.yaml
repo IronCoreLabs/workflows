@@ -103,7 +103,7 @@ runs:
       IMAGE="gcr.io/ironcore-dev-1/tenant-security-proxy"
       echo "Computing default tag from: ${IMAGE}"
 
-      # List the tags sorted by timestamp
+      # List all tagged images
       gcloud container images list-tags "${IMAGE}" \
         --format='get(tags)' \
         --filter='tags:*' > all_tags_raw
