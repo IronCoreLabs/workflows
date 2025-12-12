@@ -114,11 +114,14 @@ runs:
         exit 1
       fi
 
-      # Keep only semantic version tags like:
+      # Keep only tags that look like:
       #   MAJOR.MINOR.PATCH
-      #   MAJOR.MINOR.PATCH-PRERELEASE (e.g. 5.1.3-rc.0)
-      # and reject extra hyphens like "-rc.0-arm64".
-      grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?$' all_tags_raw > semver_tags || true
+      #   MAJOR.MINOR.PATCH-PRERELEASE
+      #   MAJOR.MINOR.PATCH[-PRERELEASE]-ARCH  (ARCH is amd64 or arm64)
+      # Then strip the -ARCH suffix so we pick versions, not architectures.
+      grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?(-(amd64|arm64))?$' all_tags_raw \
+        | sed -E 's/-(amd64|arm64)$//' \
+        | sort -u > semver_tags || true
 
       if [ ! -s semver_tags ]; then
         echo "No semantic version tags found for ${IMAGE}." >&2
@@ -127,7 +130,8 @@ runs:
         exit 1
       fi
 
-      # Sort semver versions; highest will be last
+      # Version sort so that prereleases (e.g. 5.1.3-rc.0) are ordered correctly,
+      # and a final 5.1.3 will sort after 5.1.3-rc.0.
       sort -V semver_tags | tail -n1 > max_tag
 
       TAG=$(cat max_tag)
