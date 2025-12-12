@@ -114,10 +114,11 @@ runs:
         exit 1
       fi
 
-      # Filter to semver-like tags:
+      # Keep only semantic version tags like:
       #   MAJOR.MINOR.PATCH
-      #   MAJOR.MINOR.PATCH-PRERELEASE  (e.g. 5.1.3-rc.0)
-      grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' all_tags_raw > semver_tags || true
+      #   MAJOR.MINOR.PATCH-PRERELEASE (e.g. 5.1.3-rc.0)
+      # and reject extra hyphens like "-rc.0-arm64".
+      grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?$' all_tags_raw > semver_tags || true
 
       if [ ! -s semver_tags ]; then
         echo "No semantic version tags found for ${IMAGE}." >&2
