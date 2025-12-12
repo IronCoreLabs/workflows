@@ -1,5 +1,5 @@
 # These reusable steps start a TSP docker image in the background and wait for it to report healthy
-# By default it will start the latest (highest major version) TSP from the public GAR.
+# By default it will start the latest (highest semantic version) TSP from the dev artifact repository.
 # This can be overridden with a PR comment in the following form specifying the full GAR image name/tag:
 # `TSP_IMAGE: {"tenant-security-proxy": "gcr.io/ironcore-dev-1/tenant-security-proxy:5.1.3-rc.0"}`
 # This overridden image can be from either our public or private artifact repositories.
@@ -13,7 +13,7 @@
 
 name: Get TSP image and run in background
 description: >
-  Determine which tenant-security-proxy image to use (optionally from a TSP_IMAGE PR comment, otherwise highest major tag from gcr.io/ironcore-images/tenant-security-proxy), then start the proxy and wait for it to become ready.
+  Determine which tenant-security-proxy image to use (optionally from a TSP_IMAGE PR comment, otherwise highest semantic-version tag from gcr.io/ironcore-dev-1/tenant-security-proxy), then start the proxy and wait for it to become ready.
 
 inputs:
   env-file-path:
@@ -21,7 +21,7 @@ inputs:
     required: true
   gcloud-auth:
     description: >
-      Service account JSON used to authenticate gcloud (e.g. `secrets.GCLOUD_AUTH`). Must have permission to read gcr.io/ironcore-images/tenant-security-proxy.
+      Service account JSON used to authenticate gcloud (e.g. `secrets.GCLOUD_AUTH`). Must have permission to read gcr.io/ironcore-dev-1/tenant-security-proxy.
     required: true
   tsp-port:
     description: What port the TSP should bind (defaults to 7777).
@@ -92,7 +92,7 @@ runs:
       EOF
       gcloud auth activate-service-account --key-file .github/gcloud-auth.json
       gcloud auth configure-docker --quiet
-  # Compute default tag = highest numeric major tag (e.g. "5")
+  # Compute default tag = highest semantic version tag (e.g. "5.1.3-rc.0" or "5.1.3")
   # Only if we DON'T have an override image.
   - name: Compute default TSP major tag
     if: ${{ steps.get_ref.outputs.tenant-security-proxy == '' }}
@@ -100,28 +100,37 @@ runs:
     shell: bash
     run: |
       set -euo pipefail
-      IMAGE="gcr.io/ironcore-images/tenant-security-proxy"
+      IMAGE="gcr.io/ironcore-dev-1/tenant-security-proxy"
       echo "Computing default tag from: ${IMAGE}"
-      # List tags for this image. Each line may contain multiple tags separated by ';'
-      # Example: "5;5.1;5.1.2"
+
+      # List the ~100 most recent image tags (each line contains exactly one tag)
       gcloud container images list-tags "${IMAGE}" \
-        --format='get(tags)' > all_tags_raw
+        --format='get(tags)' \
+        --limit=100 \
+        --sort-by=~TIMESTAMP > all_tags_raw
+
       if [ ! -s all_tags_raw ]; then
         echo "No tags returned by gcloud for ${IMAGE}." >&2
         exit 1
       fi
-      # Split on ';', keep only tags that are strictly digits, sort numerically, take the largest
-      tr ';' '\n' < all_tags_raw \
-        | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
-        | grep -E '^[0-9]+$' \
-        | sort -n \
-        | tail -n1 > max_tag || true
-      if [ ! -s max_tag ]; then
-        echo "No numeric major tags found for ${IMAGE}." >&2
+
+      # Filter to semver-like tags:
+      #   MAJOR.MINOR.PATCH
+      #   MAJOR.MINOR.PATCH-PRERELEASE  (e.g. 5.1.3-rc.0)
+      grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' all_tags_raw > semver_tags || true
+
+      if [ ! -s semver_tags ]; then
+        echo "No semantic version tags found for ${IMAGE}." >&2
+        echo "Tags seen:" >&2
+        cat all_tags_raw >&2 || true
         exit 1
       fi
+
+      # Sort semver versions; highest will be last
+      sort -V semver_tags | tail -n1 > max_tag
+
       TAG=$(cat max_tag)
-      echo "Default major tag: ${TAG}"
+      echo "Default semantic tag: ${TAG}"
       echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
   - name: Decide final TSP image (override vs default)
     id: decide_image
@@ -135,7 +144,7 @@ runs:
       if [ -n "${OVERRIDE_IMAGE}" ]; then
         IMAGE="${OVERRIDE_IMAGE}"
       else
-        IMAGE="gcr.io/ironcore-images/tenant-security-proxy:${DEFAULT_TAG}"
+        IMAGE="gcr.io/ironcore-dev-1/tenant-security-proxy:${DEFAULT_TAG}"
       fi
       echo "Using TSP image: ${IMAGE}"
       echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
