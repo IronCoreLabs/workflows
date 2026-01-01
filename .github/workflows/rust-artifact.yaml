@@ -106,7 +106,7 @@ jobs:
           echo "TARGET_DIR=./target" >> $GITHUB_ENV
       - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --profile ${{ inputs.build_profile }}
         working-directory: ${{ steps.rust_root.outputs.rust_root }}
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: ${{ join(matrix.os) }}-${{ matrix.rust_target }}
           path: |
