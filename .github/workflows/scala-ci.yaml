@@ -67,7 +67,7 @@ jobs:
           path: sql-smelter
       - name: Install refinery
         if: ${{ inputs.smelter_required }}
-        uses: taiki-e/cache-cargo-install-action@v2
+        uses: taiki-e/cache-cargo-install-action@v3
         with:
           tool: refinery_cli
       - name: Install additional dependencies
