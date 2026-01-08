@@ -32,11 +32,6 @@ on:
         type: string
         required: false
         default: ""
-      docker_version:
-        description: Install a specific Docker version. Useful as a workaround for a `docker-it-scala` bug with Docker v26.
-        type: string
-        required: false
-        default: ""
       smelter_required:
         description: Whether or not sql-smelter is required for this repository's tests.
         type: boolean
@@ -89,11 +84,6 @@ jobs:
           repository: ${{ inputs.download_release_binary_repo }}
           fileName: ${{ inputs.download_release_binary_name }}
           latest: true
-      - name: Install specific Docker version
-        if: inputs.docker_version != ''
-        uses: docker/setup-docker-action@v4
-        with:
-          version: ${{ inputs.docker_version }}
       - name: Print docker version
         run: docker --version
       - name: Build and test
