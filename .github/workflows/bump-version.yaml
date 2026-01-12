@@ -72,23 +72,6 @@ on:
         default: ""
 
 jobs:
-  # This job determines if we should run at all.
-  skip:
-    runs-on: ubuntu-24.04
-    outputs:
-      skip: ${{ steps.skip.outputs.skip }}
-    if: github.event_name != 'pull_request'
-    steps:
-      - name: Maybe skip
-        id: skip
-        run: |
-          # If it's a push to main, and any of the commits are from Dependabot, we should skip.
-          if [ ${{ github.event_name }} = push ] ; then
-            if [ $(jq -r < ${{ github.event_path }} '.commits | map(.author.name == "dependabot[bot]") | any') = true ] ; then
-              echo "skip=true" >> "$GITHUB_OUTPUT"
-            fi
-          fi
-
   check-versions:
     runs-on: ubuntu-24.04
     if: github.event_name == 'pull_request'
@@ -110,9 +93,8 @@ jobs:
         working-directory: self
 
   bump:
-    needs: skip
     runs-on: ubuntu-24.04
-    if: ${{ !needs.skip.outputs.skip && github.event_name != 'pull_request'}}
+    if: ${{ github.event_name != 'pull_request'}}
     steps:
       - name: Checkout own repo
         uses: actions/checkout@v6
