@@ -46,7 +46,7 @@ jobs:
           echo "/usr/local/bin" >> $GITHUB_PATH
       - run: yarn
       - name: Pre-publish steps
-        if: ${{ inputs.pre_publish_steps }} != ""
+        if: inputs.pre_publish_steps != ''
         run: ${{inputs.pre_publish_steps}}
       - run: npm publish ${{ inputs.add_access_public && '--access public' || '' }}
         working-directory: ${{ inputs.publish_working_directory }}
