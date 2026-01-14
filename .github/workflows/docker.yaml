@@ -333,8 +333,6 @@ jobs:
           .github/tmp_workflows_dir/.github/docker.buildlog.sh "$(basename "${{ inputs.buildlog_filename }}")" "${{ needs.image.outputs.longtag }}-${{ steps.arch.outputs.arch }}" "${{ steps.container-hash.outputs.hash }}"
 
   # This job pushes the image manifest (multi-arch image) and optionally creates a GitHub release.
-  # TODO: create an artifact with the image name, tags, and digests created for consumption by the vuln resolver
-  # TODO(two): is that neccessary or would the full manifest address as an artifact give everything needed?
   publish:
     needs: [docker, image]
     runs-on: ${{ inputs.other_jobs_runs_on }}
