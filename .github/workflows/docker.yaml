@@ -407,6 +407,21 @@ jobs:
               docker manifest push "$IMAGE"
             done
           fi
+        # used by other tools to identify if the expected tags were applied
+      - name: Inspect and save manifest metadata
+        id: manifest
+        run: |
+          CANONICAL="${{ steps.name.outputs.canonical }}"
+          mkdir -p /tmp/manifest-inspect
+          docker buildx imagetools inspect --format '{{json .}}' "$CANONICAL" > /tmp/manifest-inspect/manifest.json
+          echo "Manifest inspection saved to /tmp/manifest-inspect/manifest.json"
+          cat /tmp/manifest-inspect/manifest.json
+      - name: Upload manifest metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: manifest
+          path: /tmp/manifest-inspect/manifest.json
+          retention-days: 30
       # This triggers the Deploy workflow's `release: released`
       - name: Mark GitHub release as not prerelease
         if: github.event.release != null && inputs.update_github_release
