@@ -407,7 +407,13 @@ jobs:
               docker manifest push "$IMAGE"
             done
           fi
-        # used by other tools to identify if the expected tags were applied
+      - name: Generate manifest artifact name
+        id: artifact
+        run: |
+          # Sanitize image_name for use as artifact name (replace non-alphanumeric with dashes)
+          # This is to avoid artifact collisions when one workflow produces a few different images
+          NAME=$(echo "${{ inputs.image_name }}" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          echo "name=manifest-${NAME}" >> "$GITHUB_OUTPUT"
       - name: Inspect and save manifest metadata
         id: manifest
         run: |
@@ -416,10 +422,11 @@ jobs:
           docker buildx imagetools inspect --format '{{json .}}' "$CANONICAL" > /tmp/manifest-inspect/manifest.json
           echo "Manifest inspection saved to /tmp/manifest-inspect/manifest.json"
           cat /tmp/manifest-inspect/manifest.json
+      # used by other tools to identify if the expected tags were applied
       - name: Upload manifest metadata
         uses: actions/upload-artifact@v4
         with:
-          name: manifest
+          name: ${{ steps.artifact.outputs.name }}
           path: /tmp/manifest-inspect/manifest.json
           retention-days: 30
       # This triggers the Deploy workflow's `release: released`
