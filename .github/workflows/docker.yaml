@@ -439,3 +439,42 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
         run: gh release edit --tag "${{ github.event.release.tag_name }}" --prerelease=false "${{ github.event.release.name }}"
+
+  open-issue:
+    needs: [publish, image]
+    runs-on: ${{ inputs.other_jobs_runs_on }}
+    # if: needs.image.outputs.prerelease == false
+    steps:
+      - name: Populate list of licensed repos
+        run: |
+          # List the licensed image names, put into licensed-images.json
+          gcloud artifacts docker images list \
+          us-docker.pkg.dev/ironcore-images/licensed \
+          --format=json \
+          2>/dev/null \
+          | jq -r '.[].package' \
+          | sed 's|.*/||' \
+          | sort -u \
+          | jq -R . \
+          | jq -s . \
+          > licensed-images.json
+      - name: Check if produced image is in licensed repo list
+        id: check
+        run: |
+          IMAGE_NAME=$(echo "${{inputs.image_name}}" | sed 's|.*/||')
+          if jq -e --arg name "$IMAGE_NAME" '.[] == $name' licensed-images.json > /dev/null; then
+            echo "Match found".
+            echo "match=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Create issue
+        uses: actions/github-script@v7
+        # if: steps.check.outputs.match == 'true'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: "Deploy v${{ needs.image.outputs.longtag.longest }} to licensed repository",
+              body: "This issue serves as a reminder to deploy v${{ needs.image.outputs.longtag.longest }} to the licensed repository. If we plan to skip this release, please close this issue."
+            })
