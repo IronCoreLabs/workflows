@@ -75,7 +75,7 @@ jobs:
       - name: Setup Scala
         uses: coursier/setup-action@v2
         with:
-          jvm: adoptium:1.17
+          jvm: 21
           apps: sbt
       - name: Download additional binary
         if: ${{ inputs.download_release_binary_repo != '' && inputs.download_release_binary_name != '' }}
