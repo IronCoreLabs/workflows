@@ -33,7 +33,7 @@ fi
 
 # Find the version files in this directory or its descendants, but don't recurse too deep.
 # This line must be kept in sync with "bump-version.get.sh".
-VERSFILES=$(find . -maxdepth 6 ! -path ./.git/\* | grep -v /node_modules/ | grep -v **/example*/** | grep -E '.*/(version|Cargo.toml|version.go|package.json|pom.xml|version.sbt|build.gradle.kts)$')
+VERSFILES=$(find . -maxdepth 6 ! -path ./.git/\* | grep -v /node_modules/ | grep -v '/example[^/]*' | grep -E '.*/(version|Cargo.toml|version.go|package.json|pom.xml|version.sbt|build.gradle.kts)$')
 
 # Edit the version files.
 for FILE in ${VERSFILES} ; do
