@@ -141,7 +141,7 @@ jobs:
             LABELS="--label auto-promote"
           fi
           AUTHOR="${{ steps.software-pr.outputs.author }}"
-          if [ -n "$AUTHOR" ] ; then
+          if [ -n "$AUTHOR" ] && [ "$AUTHOR" != "app/dependabot" ]; then
             ASSIGNEE="--assignee $AUTHOR --reviewer $AUTHOR"
           fi
           gh pr create --fill $ASSIGNEE $LABELS
