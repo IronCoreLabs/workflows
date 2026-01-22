@@ -475,6 +475,6 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: "Deploy v${{ needs.image.outputs.longtag.longest }} to licensed repository",
-              body: "This issue serves as a reminder to deploy v${{ needs.image.outputs.longtag.longest }} to the licensed repository. If we plan to skip this release, please close this issue."
+              title: "Deploy v${{ needs.image.outputs.longtag }} to licensed repository",
+              body: "This issue serves as a reminder to deploy v${{ needs.image.outputs.longtag }} to the licensed repository. If we plan to skip this release, please close this issue."
             })
