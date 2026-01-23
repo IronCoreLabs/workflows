@@ -447,6 +447,10 @@ jobs:
     steps:
       - name: List gcloud credentials
         run: gcloud auth list
+      - run: |
+          gcloud artifacts docker images list \
+          us-docker.pkg.dev/ironcore-images/licensed \
+          --format=json
       - name: Populate list of licensed repos
         run: |
           # List the licensed image names, put into licensed-images.json
