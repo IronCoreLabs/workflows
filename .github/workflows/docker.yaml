@@ -456,8 +456,6 @@ jobs:
         with:
           service_account: depot-ci@ironcore-dev-1.iam.gserviceaccount.com
           workload_identity_provider: projects/660542197445/locations/global/workloadIdentityPools/github-actions/providers/github-actions
-      - name: List gcloud credentials
-        run: gcloud auth list
       - name: Populate list of licensed repos
         run: |
           # List the licensed image names, put into licensed-images.json
