@@ -445,6 +445,8 @@ jobs:
     runs-on: ${{ inputs.other_jobs_runs_on }}
     if: needs.image.outputs.prerelease == 'false'
     steps:
+      - name: List gcloud credentials
+        run: gcloud auth list
       - name: Populate list of licensed repos
         run: |
           # List the licensed image names, put into licensed-images.json
