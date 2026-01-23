@@ -463,7 +463,7 @@ jobs:
         run: |
           IMAGE_NAME=$(echo "${{inputs.image_name}}" | sed 's|.*/||')
           if jq -e --arg name "$IMAGE_NAME" '.[] == $name' licensed-images.json > /dev/null; then
-            echo "Match found".
+            echo "Match found"
             echo "match=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Create issue
