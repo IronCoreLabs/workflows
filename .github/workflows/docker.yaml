@@ -446,6 +446,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      issues: write
     if: needs.image.outputs.prerelease == 'false'
     steps:
       - uses: actions/checkout@v6
