@@ -494,5 +494,8 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: "Deploy v${{ needs.image.outputs.longtag }} to licensed repository",
-              body: "This issue serves as a reminder to deploy v${{ needs.image.outputs.longtag }} to the licensed repository. If we plan to skip this release, please close this issue."
+              body: "This issue serves as a reminder to deploy v${{ needs.image.outputs.longtag }} to the licensed repository. " +
+              "Use https://github.com/IronCoreLabs/depot/actions/workflows/copy-image.yaml to deploy the image, then update " +
+              "the respective changelog in https://drive.google.com/drive/folders/1y6mge2TtxRscXFbjQZKWtv1S6D0Gqtot. \n\n" +
+              "If we plan to skip this release, please close this issue."
             })
