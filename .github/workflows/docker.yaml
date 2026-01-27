@@ -78,6 +78,11 @@ on:
         type: boolean
         required: false
         default: true
+      skip_licensed_deployment_reminder:
+        description: "When `true`, skips opening an issue reminding you to deploy to the licensed repository"
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   image:
@@ -447,7 +452,7 @@ jobs:
       contents: read
       id-token: write
       issues: write
-    if: needs.image.outputs.prerelease == 'false'
+    if: needs.image.outputs.prerelease == 'false' && inputs.skip_licensed_deployment_reminder == false
     steps:
       - uses: actions/checkout@v6
         with:
