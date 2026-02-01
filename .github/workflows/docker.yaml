@@ -433,7 +433,7 @@ jobs:
           cat /tmp/manifest-inspect/manifest.json
       # used by other tools to identify if the expected tags were applied
       - name: Upload manifest metadata
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.artifact.outputs.name }}
           path: /tmp/manifest-inspect/manifest.json
