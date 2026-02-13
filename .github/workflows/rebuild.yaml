@@ -9,9 +9,6 @@
 #     refs: '["main", "release/v1"]'
 
 name: Periodic Rebuild
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 on:
   workflow_call:
     inputs:
