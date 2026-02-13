@@ -367,7 +367,9 @@ jobs:
       - name: Create and push manifest
         run: |
           set -x
+          # Will look like "gcr.io/ironcore-dev-1/ironcore-id-server:1.2.6"
           CANONICAL="${{ steps.name.outputs.canonical }}"
+          # Will look like "gcr.io/ironcore-dev-1/ironcore-id-server:1.2.6-amd64 gcr.io/ironcore-dev-1/ironcore-id-server:1.2.6-arm64"
           IMGS=$(echo "${{ inputs.archs }}" | tr ' ' '\n' | sed "s%^%$CANONICAL-%" | tr '\n' ' ')
 
           # A helper function that takes a local manifest to create and a list of images to tag with that manifest
