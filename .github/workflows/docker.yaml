@@ -277,6 +277,7 @@ jobs:
         if: inputs.build_command == ''
         run: |
           docker build \
+          --provenance=false \
           --build-arg AWS_ACCESS_KEY_ID=${{ vars.SCCACHE_AWS_ACCESS_KEY_ID }} \
           --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET_ACCESS_KEY }} \
           ${{ inputs.configure_git_ssh && '--ssh=default="${HOME}/.ssh/id_ed25519"' || '' }} \
@@ -371,22 +372,14 @@ jobs:
           CANONICAL="${{ steps.name.outputs.canonical }}"
           # Will look like "gcr.io/ironcore-dev-1/ironcore-id-server:1.2.6-amd64 gcr.io/ironcore-dev-1/ironcore-id-server:1.2.6-arm64"
           IMGS=$(echo "${{ inputs.archs }}" | tr ' ' '\n' | sed "s%^%$CANONICAL-%" | tr '\n' ' ')
-          test_manifest_creation() {
+
+          # A helper function that takes a local manifest to create and a list of images to tag with that manifest
+          create_manifest() {
             local target="$1"
+            shift
             for RETRY in $(seq 10); do
-              echo "Attempt #$RETRY to pull images and create manifest for $target"
-              # Not quoting around '${{ inputs.archs }}' as we're relying on it being space-separated
-              for ARCH in ${{ inputs.archs }} ; do
-                if ! docker pull "${CANONICAL}-${ARCH}" ; then
-                  echo "Attempt #${RETRY} failed."
-                  sleep 10
-                  # Continue the outer loop, not the inner one.
-                  continue 2
-                fi
-              done
-              if docker manifest create "$target" ${IMGS} ; then
-                # We'll re-create this below, in the loop.
-                docker manifest rm "$target" || true
+              echo "Attempt #$RETRY to create manifest for $target"
+              if docker buildx imagetools create -t "$target" $@ ; then
                 return 0
               fi
               echo "Attempt #${RETRY} failed."
@@ -396,24 +389,17 @@ jobs:
             return 1
           }
 
-          test_manifest_creation "$CANONICAL"
-          # If that worked, we should be able to create each of the aliases (e.g. 4.12.0, 4.12, 4).
+          # Create and push a manifest for each tag (e.g. 4.12.0, 4.12, 4)
           for IMAGE in ${{ needs.image.outputs.images }} ; do
-            # Not quoting around IMGS as we're relying on it being space-separated
-            docker manifest create "$IMAGE" ${IMGS}
-            docker manifest push "$IMAGE"
+            create_manifest "$IMAGE" ${IMGS}
           done
 
-          # Do the same for any additional manifests
+          # Do the same for any additional image names
           if [ -n "${{ inputs.additional_release_image_name }}" ] && [ "${{ needs.image.outputs.prerelease }}" = "false" ]; then
-            CANONICAL=$(echo "$CANONICAL" | sed "s#^${{ inputs.image_name }}#${{ inputs.additional_release_image_name }}#")
-            test_manifest_creation "$CANONICAL"
-            IMGS=$(echo "${{ inputs.archs }}" | tr ' ' '\n' | sed "s%^%$CANONICAL-%" | tr '\n' ' ')
+            IMGS=$(echo "${{ inputs.archs }}" | tr ' ' '\n' | sed "s%^%$(echo "$CANONICAL" | sed "s#^${{ inputs.image_name }}#${{ inputs.additional_release_image_name }}#")-%" | tr '\n' ' ')
             NEEDS_IMAGES=$(echo "${{ needs.image.outputs.images }}" | sed "s#${{ inputs.image_name }}:#${{ inputs.additional_release_image_name }}:#g")
             for IMAGE in $NEEDS_IMAGES ; do
-              # Not quoting around IMGS as we're relying on it being space-separated
-              docker manifest create "$IMAGE" ${IMGS}
-              docker manifest push "$IMAGE"
+              create_manifest "$IMAGE" ${IMGS}
             done
           fi
       - name: Generate manifest artifact name
