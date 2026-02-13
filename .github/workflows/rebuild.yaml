@@ -1,4 +1,12 @@
 # Periodically rebuild container images by bumping the version.
+#
+# Usage:
+#   uses: IronCoreLabs/workflows/.github/workflows/rebuild.yaml@rebuild-v1
+#
+# With multiple refs:
+#   uses: IronCoreLabs/workflows/.github/workflows/rebuild.yaml@rebuild-v1
+#   with:
+#     refs: '["main", "release/v1"]'
 
 name: Periodic Rebuild
 concurrency:
@@ -6,17 +14,28 @@ concurrency:
   cancel-in-progress: true
 on:
   workflow_call:
+    inputs:
+      refs:
+        type: string
+        required: false
+        default: '["main"]'
+        description: JSON array of refs to rebuild (e.g., '["main", "release/v1"]')
 
 jobs:
   rebuild:
     runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        ref: ${{ fromJSON(inputs.refs) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          ref: ${{ matrix.ref }}
           token: ${{ secrets.WORKFLOW_PAT }}
       - name: Trigger rebuild
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: "Bump Version"
+          ref: ${{ matrix.ref }}
           token: ${{ secrets.WORKFLOW_PAT }}
