@@ -277,6 +277,7 @@ jobs:
         if: inputs.build_command == ''
         run: |
           docker build \
+          --provenance=false \
           --build-arg AWS_ACCESS_KEY_ID=${{ vars.SCCACHE_AWS_ACCESS_KEY_ID }} \
           --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.SCCACHE_AWS_SECRET_ACCESS_KEY }} \
           ${{ inputs.configure_git_ssh && '--ssh=default="${HOME}/.ssh/id_ed25519"' || '' }} \
