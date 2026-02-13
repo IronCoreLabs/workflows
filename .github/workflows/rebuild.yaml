@@ -1,4 +1,7 @@
 # Periodically rebuild container images by bumping the version.
+# If being used with `refs`, ensure that the all the branches provided are under
+# different major versions (for example, docker-jdk v17 and v21).
+# This should _not_ be used for hotfix branches, as we don't bump versions in those cases.
 #
 # Usage:
 #   uses: IronCoreLabs/workflows/.github/workflows/rebuild.yaml@rebuild-v1
