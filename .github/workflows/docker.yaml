@@ -53,11 +53,6 @@ on:
         type: boolean
         required: false
         default: false
-      setup_scala_java_version:
-        description: If set, calls setup-scala with the provided java version number before building.
-        type: string
-        required: false
-        default: ""
       extra_commands:
         description: Extra commands to run before building the Docker image
         type: string
@@ -264,15 +259,6 @@ jobs:
       - name: Extra commands
         if: inputs.extra_commands != ''
         run: ${{ inputs.extra_commands }}
-      - name: Restore scala caches
-        if: inputs.setup_scala_java_version != ''
-        uses: coursier/cache-action@v7
-      - name: Setup Scala
-        if: inputs.setup_scala_java_version != ''
-        uses: coursier/setup-action@v2
-        with:
-          jvm: ${{ inputs.setup_scala_java_version }}
-          apps: sbt
       - name: Build docker (Default)
         if: inputs.build_command == ''
         run: |
