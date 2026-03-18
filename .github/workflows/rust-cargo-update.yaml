@@ -46,6 +46,11 @@ jobs:
           git add -A
           git commit -m "Update Cargo dependencies"
           git push -u origin "${BRANCH}"
+          REVIEWER="${{ github.actor }}"
+          if [ "${REVIEWER}" = "github-actions[bot]" ] || [ "${REVIEWER}" = "leeroy-travis" ] ; then
+            REVIEWER=""
+          fi
           gh pr create \
             --title "Update Cargo dependencies" \
             --body "Automated \`cargo update\` run." \
+            ${REVIEWER:+--reviewer "$REVIEWER"}
