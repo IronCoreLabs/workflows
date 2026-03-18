@@ -1,0 +1,51 @@
+# Run `cargo update` and open a PR with the results.
+
+name: Rust Cargo Update
+on:
+  workflow_call:
+    inputs:
+      rust_root:
+        description: Root of the rust code tree. May be a relative path.
+        type: string
+        required: false
+    secrets:
+      WORKFLOW_PAT:
+        description: GitHub personal access token with at least "repo" permissions.
+        required: true
+
+jobs:
+  cargo-update:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.WORKFLOW_PAT }}
+      - uses: IronCoreLabs/rust-toolchain@v1
+      - name: Run cargo update
+        run: cargo update
+        working-directory: ${{ inputs.rust_root || '.' }}
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet ; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Create PR
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+        run: |
+          git config --global user.email ops@ironcorelabs.com
+          git config --global user.name "Leeroy Travis"
+          BRANCH="ci-cargo-update"
+          # Delete the remote branch if it already exists, so we get a clean update.
+          git push origin --delete "${BRANCH}" 2>/dev/null || true
+          git checkout -b "${BRANCH}"
+          git add -A
+          git commit -m "Update Cargo dependencies"
+          git push -u origin "${BRANCH}"
+          gh pr create \
+            --title "Update Cargo dependencies" \
+            --body "Automated \`cargo update\` run." \
