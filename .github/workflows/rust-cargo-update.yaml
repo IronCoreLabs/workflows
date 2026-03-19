@@ -8,6 +8,10 @@ on:
         description: Root of the rust code tree. May be a relative path.
         type: string
         required: false
+      reviewer:
+        description: GitHub username to set as PR reviewer. Falls back to github.actor if not set.
+        type: string
+        required: false
     secrets:
       WORKFLOW_PAT:
         description: GitHub personal access token with at least "repo" permissions.
@@ -46,7 +50,7 @@ jobs:
           git add -A
           git commit -m "Update Cargo dependencies"
           git push -u origin "${BRANCH}"
-          REVIEWER="${{ github.actor }}"
+          REVIEWER="${{ inputs.reviewer || github.actor }}"
           if [ "${REVIEWER}" = "github-actions[bot]" ] || [ "${REVIEWER}" = "leeroy-travis" ] ; then
             REVIEWER=""
           fi
