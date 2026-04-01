@@ -194,7 +194,7 @@ jobs:
           ref: ${{ github.event.inputs.ref }}${{ github.event.release.tag_name }}
       - name: Log in to docker
         # This avoids rate limits.
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ironcoreci
           password: ${{ secrets.DOCKERHUB_TOKEN }}
