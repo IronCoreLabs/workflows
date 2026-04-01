@@ -73,7 +73,7 @@ jobs:
       - name: Restore caches
         uses: coursier/cache-action@v8
       - name: Setup Scala
-        uses: coursier/setup-action@v2
+        uses: coursier/setup-action@v3
         with:
           jvm: 21
           apps: sbt
