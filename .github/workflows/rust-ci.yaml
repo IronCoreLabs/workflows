@@ -238,9 +238,6 @@ jobs:
             ${{inputs.cargo_command_env_vars}} cargo sort --check
           fi
         working-directory: ${{ needs.vars.outputs.rust_root }}
-      - name: Cancel workflow
-        if: failure()
-        uses: andymckay/cancel-action@0.5
 
   clippy:
     name: Clippy
