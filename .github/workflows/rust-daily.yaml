@@ -7,10 +7,6 @@ name: Rust Daily
 on:
   workflow_call:
     inputs:
-      rust_root:
-        description: Root of the rust code tree. May be a relative path.
-        type: string
-        required: false
       rust_versions:
         description: 'A JS array list of versions to be included in the test matrix. Defaults to `["beta"]` (stable will be implicitly added in the default `matrix_include`).'
         required: false
@@ -37,30 +33,11 @@ on:
         required: false
 
 jobs:
-  # Assigns some variables, because GHA doesn't expand variables in inputs.*.default.
-  vars:
-    runs-on: ubuntu-24.04
-    outputs:
-      rust_root: ${{ steps.rust_root.outputs.rust_root }}
-    steps:
-      - id: rust_root
-        run: |
-          if [ -n "${{ inputs.rust_root }}" ] ; then
-            root="${{ inputs.rust_root }}"
-          else
-            root="${{ github.workspace }}"
-          fi
-          echo "rust_root=$root" >> $GITHUB_OUTPUT
-
   cargo-check:
     runs-on: ubuntu-24.04
-    needs: vars
     env:
       SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET_ACCESS_KEY }}
       TOOL_CACHE_SECRET_KEY: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
-    defaults:
-      run:
-        working-directory: ${{ needs.vars.outputs.rust_root }}
     strategy:
       matrix:
         rust_version: "${{ fromJSON(inputs.rust_versions) }}"
