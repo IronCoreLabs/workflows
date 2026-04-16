@@ -4,10 +4,6 @@ name: Rust Cargo Update
 on:
   workflow_call:
     inputs:
-      rust_root:
-        description: Root of the rust code tree. May be a relative path.
-        type: string
-        required: false
       reviewer:
         description: GitHub username to set as PR reviewer. Falls back to github.actor if not set.
         type: string
@@ -27,7 +23,6 @@ jobs:
       - uses: IronCoreLabs/rust-toolchain@v1
       - name: Run cargo update
         run: cargo update
-        working-directory: ${{ inputs.rust_root || '.' }}
       - name: Check for changes
         id: changes
         run: |

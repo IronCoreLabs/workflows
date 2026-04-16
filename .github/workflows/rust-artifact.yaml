@@ -7,10 +7,6 @@ name: Rust Artifact
 on:
   workflow_call:
     inputs:
-      rust_root:
-        description: Root of the rust code tree. May be a relative path.
-        type: string
-        required: false
       build_matrix_build_args:
         description: "Matrix args for the `cargo build` called in the job. Defaults to nothing, mostly useful in includes."
         required: false
@@ -66,14 +62,6 @@ jobs:
         include: ${{ fromJSON(inputs.matrix_include) }}
     steps:
       - uses: actions/checkout@v6
-      - id: rust_root
-        run: |
-          if [ -n "${{ inputs.rust_root }}" ] ; then
-              root="${{ inputs.rust_root }}"
-          else
-              root="${{ github.workspace }}"
-          fi
-          echo "rust_root=$root" >> $GITHUB_OUTPUT
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: |
@@ -105,13 +93,12 @@ jobs:
           # Make the target directory the same as the when `rust_target` is empty
           echo "TARGET_DIR=./target" >> $GITHUB_ENV
       - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }} --profile ${{ inputs.build_profile }}
-        working-directory: ${{ steps.rust_root.outputs.rust_root }}
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ join(matrix.os) }}-${{ matrix.rust_target }}
           path: |
-            ${{ steps.rust_root.outputs.rust_root }}/target/${{ inputs.build_profile }}/*.dylib
-            ${{ steps.rust_root.outputs.rust_root }}/target/${{ inputs.build_profile }}/*.so
+            target/${{ inputs.build_profile }}/*.dylib
+            target/${{ inputs.build_profile }}/*.so
           if-no-files-found: error
       - name: Print sccache stats
         if: env.SCCACHE_AWS_SECRET != ''
