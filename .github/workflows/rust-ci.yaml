@@ -63,10 +63,26 @@ on:
         type: string
         required: false
         default: ""
+      smelter_required:
+        description: Whether or not sql-smelter is required for this repository's tests.
+        type: boolean
+        required: false
+        default: false
+      smelter_branch:
+        description: Branch of smelter to check out. Should come from the sql-smelter workflow. Defaults to main.
+        type: string
+        required: false
+        default: "main"
     secrets:
       TOOL_CACHE_SECRET_KEY:
         description: "AWS secret key to access our Rust tool cache S3 bucket."
         required: false
+      WORKFLOW_PAT:
+        description: "GitHub PAT used to check out sql-smelter when smelter_required is true."
+        required: false
+
+env:
+  UNDER_TEST_FOLDER: rust-repo
 
 jobs:
   cargo-test:
@@ -91,15 +107,30 @@ jobs:
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - uses: actions/checkout@v6
+        with:
+          path: ${{ env.UNDER_TEST_FOLDER }}
+      - uses: actions/checkout@v6
+        if: ${{ inputs.smelter_required }}
+        with:
+          repository: IronCoreLabs/sql-smelter
+          token: ${{ secrets.WORKFLOW_PAT }}
+          ref: ${{ inputs.smelter_branch }}
+          path: sql-smelter
+      - name: Install refinery
+        if: ${{ inputs.smelter_required }}
+        uses: taiki-e/cache-cargo-install-action@v3
+        with:
+          tool: refinery_cli
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: |
           sudo apt update
           sudo apt install ${{ inputs.additional_system_deps }}
-      - uses: IronCoreLabs/rust-toolchain@v1
+      - uses: IronCoreLabs/rust-toolchain@add-working-dir
         with:
           toolchain: ${{ matrix.rust_version }}
           targets: ${{ matrix.rust_target }}
+          working-directory: ${{ env.UNDER_TEST_FOLDER }}
       - name: Install sccache
         if: env.SCCACHE_AWS_SECRET != ''
         uses: taiki-e/install-action@sccache
@@ -116,12 +147,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-provider: github
+          workspaces: ${{ env.UNDER_TEST_FOLDER }}
       - name: Set Rust target
         if: ${{ matrix.rust_target != '' }}
         run: echo "TARGET_FLAGS=--target ${{ matrix.rust_target }}" >> $GITHUB_ENV
       - run: ${{inputs.cargo_command_env_vars}} cargo build ${{ matrix.build_args }}
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
       - run: ${{inputs.cargo_command_env_vars}} cargo test ${{ matrix.test_args }} ${{ inputs.cargo_command_test_args }}
         if: ${{ !matrix.build_only }}
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
       - name: Print sccache stats
         if: env.SCCACHE_AWS_SECRET != ''
         run: sccache -s
@@ -141,12 +175,28 @@ jobs:
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - uses: actions/checkout@v6
+        with:
+          path: ${{ env.UNDER_TEST_FOLDER }}
+      - uses: actions/checkout@v6
+        if: ${{ inputs.smelter_required }}
+        with:
+          repository: IronCoreLabs/sql-smelter
+          token: ${{ secrets.WORKFLOW_PAT }}
+          ref: ${{ inputs.smelter_branch }}
+          path: sql-smelter
+      - name: Install refinery
+        if: ${{ inputs.smelter_required }}
+        uses: taiki-e/cache-cargo-install-action@v3
+        with:
+          tool: refinery_cli
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: |
           sudo apt update
           sudo apt install ${{ inputs.additional_system_deps }}
-      - uses: IronCoreLabs/rust-toolchain@v1
+      - uses: IronCoreLabs/rust-toolchain@add-working-dir
+        with:
+          working-directory: ${{ env.UNDER_TEST_FOLDER }}
       - name: Install sccache
         if: env.SCCACHE_AWS_SECRET != ''
         uses: taiki-e/install-action@sccache
@@ -163,16 +213,19 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-provider: github
+          workspaces: ${{ env.UNDER_TEST_FOLDER }}
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Run llvm-cov
         run: ${{inputs.cargo_command_env_vars}} cargo llvm-cov --html ${{ inputs.cargo_command_test_args }}
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
       - name: Get Cobertura report as well
         run: ${{inputs.cargo_command_env_vars}} cargo llvm-cov report --cobertura --output-path cobertura.xml
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
       - name: Archive code coverage results
         uses: actions/upload-artifact@v7
         with:
           name: code-coverage-report
-          path: target/llvm-cov/html/
+          path: ${{ env.UNDER_TEST_FOLDER }}/target/llvm-cov/html/
       - name: Post code coverage to PR comment
         if: ${{ github.base_ref != '' }}
         # If this is run from a fork, this will fail to post a comment on the PR.
@@ -180,7 +233,7 @@ jobs:
         continue-on-error: true
         uses: 5monkeys/cobertura-action@v14
         with:
-          path: cobertura.xml
+          path: ${{ env.UNDER_TEST_FOLDER }}/cobertura.xml
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           only_changed_files: true
           show_line: true
@@ -198,10 +251,14 @@ jobs:
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - uses: actions/checkout@v6
-      - uses: IronCoreLabs/rust-toolchain@v1
+        with:
+          path: ${{ env.UNDER_TEST_FOLDER }}
+      - uses: IronCoreLabs/rust-toolchain@add-working-dir
         with:
           components: rustfmt
+          working-directory: ${{ env.UNDER_TEST_FOLDER }}
       - run: ${{inputs.cargo_command_env_vars}} cargo fmt --all -- --check
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
       - name: Install cargo-sort
         uses: taiki-e/install-action@cargo-sort
       - run: |
@@ -210,6 +267,7 @@ jobs:
           else
             ${{inputs.cargo_command_env_vars}} cargo sort --check
           fi
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
 
   clippy:
     name: Clippy
@@ -224,12 +282,16 @@ jobs:
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - uses: actions/checkout@v6
+        with:
+          path: ${{ env.UNDER_TEST_FOLDER }}
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: |
           sudo apt update
           sudo apt install ${{ inputs.additional_system_deps }}
-      - uses: IronCoreLabs/rust-toolchain@v1
+      - uses: IronCoreLabs/rust-toolchain@add-working-dir
         with:
           components: clippy
+          working-directory: ${{ env.UNDER_TEST_FOLDER }}
       - run: ${{inputs.cargo_command_env_vars}} cargo clippy -- -D warnings
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
