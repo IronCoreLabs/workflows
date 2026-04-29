@@ -87,6 +87,7 @@ env:
 jobs:
   cargo-test:
     runs-on: ubuntu-24.04
+    if: github.event_name != 'issue_comment'
     env:
       SCCACHE_AWS_SECRET: ${{ secrets.SCCACHE_AWS_SECRET_ACCESS_KEY }}
       TOOL_CACHE_SECRET_KEY: ${{ secrets.TOOL_CACHE_SECRET_KEY }}
@@ -242,6 +243,7 @@ jobs:
 
   format:
     runs-on: ubuntu-24.04
+    if: github.event_name != 'issue_comment'
     steps:
       - name: Configure git ssh access
         run: |
@@ -272,7 +274,7 @@ jobs:
   clippy:
     name: Clippy
     runs-on: ubuntu-24.04
-    if: inputs.run_clippy
+    if: inputs.run_clippy && github.event_name != 'issue_comment'
     steps:
       - name: Configure git ssh access
         run: |
