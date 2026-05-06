@@ -457,7 +457,7 @@ jobs:
             echo "match=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Create issue
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         if: steps.check.outputs.match == 'true'
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
