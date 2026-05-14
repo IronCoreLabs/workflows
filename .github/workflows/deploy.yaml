@@ -61,16 +61,21 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
           path: software
-      # Find the original PR to the software repo. The git tag should correspond to a GitHub release, which should have a
-      # description pointing to the PR number.
-      - name: Get original PR
+      # Pull metadata out of the GitHub release body. bump-version stamps `triggered_by:<actor>` and
+      # (when discoverable) `latest_pr:<number>` so downstream workflows can recover context that the
+      # WORKFLOW_PAT-driven release event would otherwise lose.
+      - name: Get release metadata
         id: software-pr
         working-directory: software
         run: |
           set -x
-          gh release view ${{ inputs.tag }} --json body --jq '.body' | sed 's/.*latest_pr:\([0-9]*\).*/\1/' > /tmp/pr
-          PR=$(cat /tmp/pr)
-          if [ -z "${PR}" ] || [ "${PR}" = "null" ] ; then
+          BODY=$(gh release view ${{ inputs.tag }} --json body --jq '.body')
+          TRIGGERED_BY=$(echo "$BODY" | grep -oE 'triggered_by:[^ ]+' | cut -d: -f2 || true)
+          if [ -n "$TRIGGERED_BY" ] ; then
+            echo "triggered_by=$TRIGGERED_BY" >> "$GITHUB_OUTPUT"
+          fi
+          PR=$(echo "$BODY" | grep -oE 'latest_pr:[0-9]+' | cut -d: -f2 || true)
+          if [ -z "${PR}" ] ; then
             exit 0
           fi
           echo "pr=$PR" >> "$GITHUB_OUTPUT"
@@ -136,10 +141,13 @@ jobs:
           git commit -m "${COMMIT_MSG}"
           git push -u origin "${NEW_BRANCH}"
 
-          # If we can't find the originating PR, it must mean the change came from automation, and we should auto-promote.
-          if [ -z "${{ steps.software-pr.outputs.pr }}" ] ; then
-            LABELS="--label auto-promote"
-          fi
+          # Auto-promote only when bump-version was triggered by a known automation actor (e.g.,
+          # leeroy-travis from rebuild.yaml). Manual workflow_dispatch by a human is intentionally excluded.
+          case "${{ steps.software-pr.outputs.triggered_by }}" in
+            leeroy-travis)
+              LABELS="--label auto-promote"
+              ;;
+          esac
           AUTHOR="${{ steps.software-pr.outputs.author }}"
           if [ -n "$AUTHOR" ] && [ "$AUTHOR" != "app/dependabot" ]; then
             ASSIGNEE="--assignee $AUTHOR --reviewer $AUTHOR"
