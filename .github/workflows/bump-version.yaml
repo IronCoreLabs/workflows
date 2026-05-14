@@ -175,8 +175,8 @@ jobs:
       # by leeroy-travis (the PAT owner), washing out information like who actually clicked the button
       # and which PR produced this commit. We encode it here so it survives the handoff.
       #
-      # Output format is a single space-separated string of `key:value` pairs, e.g.:
-      #   triggered_by:leeroy-travis latest_pr:1234
+      # Output is a compact JSON object, e.g.:
+      #   {"triggered_by":"leeroy-travis","latest_pr":1234}
       - name: Generate release text
         id: release-body
         run: |
@@ -186,7 +186,8 @@ jobs:
           # Always recorded. deploy.yaml reads this to decide whether to apply the auto-promote label:
           # scheduled rebuilds dispatch bump-version via rebuild.yaml's PAT (leeroy-travis), while
           # humans clicking workflow_dispatch in the UI show up as themselves.
-          BODY="triggered_by:${{ github.triggering_actor }}"
+          METADATA=$(jq -cn --arg triggered_by "${{ github.triggering_actor }}" \
+            '{triggered_by: $triggered_by}')
 
           # --- latest_pr: the PR that produced the commit we're about to release ---
           # Best-effort. deploy.yaml uses it to comment back on the original PR and assign reviewers.
@@ -203,11 +204,11 @@ jobs:
               https://api.github.com/repos/${{ github.repository }}/pulls?state=all\&base=${{ github.ref }}\&sort=updated\&direction=desc > /tmp/prs.json
             PR=$(jq -r ".[] | select(.merge_commit_sha == \"${COMMIT}\") | .number" /tmp/prs.json)
             if [ "${PR}" != "null" ] && [ -n "${PR}" ] ; then
-              BODY="${BODY} latest_pr:${PR}"
+              METADATA=$(echo "$METADATA" | jq -c --argjson pr "$PR" '. + {latest_pr: $pr}')
             fi
           fi
 
-          echo "body=${BODY}" >> "$GITHUB_OUTPUT"
+          echo "body=${METADATA}" >> "$GITHUB_OUTPUT"
         working-directory: self
       # This triggers the Docker workflow's `release: created`
       - name: Create GitHub Release

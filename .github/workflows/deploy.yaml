@@ -61,20 +61,24 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
           path: software
-      # Pull metadata out of the GitHub release body. bump-version stamps `triggered_by:<actor>` and
-      # (when discoverable) `latest_pr:<number>` so downstream workflows can recover context that the
-      # WORKFLOW_PAT-driven release event would otherwise lose.
+      # Pull metadata out of the GitHub release body. bump-version stamps a JSON object containing
+      # `triggered_by` and (when discoverable) `latest_pr` so downstream workflows can recover context
+      # that the WORKFLOW_PAT-driven release event would otherwise lose.
       - name: Get release metadata
         id: software-pr
         working-directory: software
         run: |
           set -x
           BODY=$(gh release view ${{ inputs.tag }} --json body --jq '.body')
-          TRIGGERED_BY=$(echo "$BODY" | grep -oE 'triggered_by:[^ ]+' | cut -d: -f2 || true)
+          # Releases predating the JSON format have plain-text bodies; treat them as having no metadata.
+          if ! echo "$BODY" | jq -e . >/dev/null 2>&1 ; then
+            exit 0
+          fi
+          TRIGGERED_BY=$(echo "$BODY" | jq -r '.triggered_by // empty')
           if [ -n "$TRIGGERED_BY" ] ; then
             echo "triggered_by=$TRIGGERED_BY" >> "$GITHUB_OUTPUT"
           fi
-          PR=$(echo "$BODY" | grep -oE 'latest_pr:[0-9]+' | cut -d: -f2 || true)
+          PR=$(echo "$BODY" | jq -r '.latest_pr // empty')
           if [ -z "${PR}" ] ; then
             exit 0
           fi
