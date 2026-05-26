@@ -217,7 +217,11 @@ jobs:
         if: ${{ !contains(steps.release.outputs.release, '-') || inputs.release_prereleases }}
         env:
           GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
-        run: gh release create "${{ steps.release.outputs.release }}" --title "${{ steps.release.outputs.release }}" --prerelease=true --notes "${{ steps.release-body.outputs.body }}"
+          # Pass the JSON body via env rather than inline ${{ }} interpolation: the body contains double
+          # quotes that would otherwise break out of the shell's quoting and corrupt the JSON.
+          # Same concept as https://docs.github.com/en/actions/reference/security/secure-use#use-an-intermediate-environment-variable
+          RELEASE_BODY: ${{ steps.release-body.outputs.body }}
+        run: gh release create "${{ steps.release.outputs.release }}" --title "${{ steps.release.outputs.release }}" --prerelease=true --notes "$RELEASE_BODY"
         working-directory: self
       - name: Trigger Docker
         # If we didn't make a GitHub Release, we need to trigger the Docker workflow manually
