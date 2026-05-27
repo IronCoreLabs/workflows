@@ -102,6 +102,9 @@ jobs:
           keys: ${{ secrets.IRONHIDE_KEYS }}
           input: ${{ inputs.files_to_decrypt }}
           working-directory: ${{ env.UNDER_TEST_FOLDER }}
+      - name: Set yarn mode
+        if: ${{ inputs.modern_yarn }}
+        run: corepack enable
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node_version }}
@@ -112,10 +115,6 @@ jobs:
         run: |
           sudo apt update
           sudo apt install ${{ inputs.additional_system_deps }}
-      - name: Set yarn mode
-        if: ${{ inputs.modern_yarn }}
-        run: |
-          corepack enable
       - name: Install modules
         run: yarn
       - name: Run tests
