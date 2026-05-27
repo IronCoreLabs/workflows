@@ -27,7 +27,7 @@ on:
       test_matrix_node_version:
         description: 'A JS array list of versions to be included in the test matrix. Defaults to "["14"]".'
         required: false
-        default: '["14"]'
+        default: '["24"]'
         type: string
       additional_system_deps:
         description: 'A single string of additional dependencies to install on the ubuntu runner using `apt`, ex "protobuf-compiler openssl".'
@@ -55,7 +55,7 @@ on:
         default: ""
       modern_yarn:
         type: boolean
-        description: 'Use Modern Yarn (v2+). If false use Classic (v1.x).'
+        description: "Use Modern Yarn (v2+). If false use Classic (v1.x)."
         required: false
         default: false
     secrets:
@@ -116,7 +116,6 @@ jobs:
         if: ${{ inputs.modern_yarn }}
         run: |
           corepack enable
-          yarn set version berry
       - name: Install modules
         run: yarn
       - name: Run tests
