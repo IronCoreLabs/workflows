@@ -1,4 +1,5 @@
-# CI for Scala projects. This compiles, runs tests, checks formatting, and produces a coverage report.
+# CI for Scala projects. This compiles, runs tests, applies scalafmt + scalafix auto-fixes (pushing them back
+# to the PR branch when possible), and produces a coverage report.
 
 name: Scala CI
 concurrency:
@@ -42,6 +43,10 @@ on:
         type: string
         required: false
         default: "main"
+    secrets:
+      WORKFLOW_PAT:
+        description: GitHub PAT used to push scalafmt/scalafix auto-fix commits back to PR branches. If absent, the workflow falls back to check-only mode.
+        required: false
 
 jobs:
   test:
@@ -50,9 +55,26 @@ jobs:
     env:
       UNDER_TEST_FOLDER: scala-repo
     steps:
+      - name: Determine if auto-fix push is possible
+        id: push_mode
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          IS_FORK: ${{ github.event.pull_request.head.repo.fork }}
+          HAS_PAT: ${{ secrets.WORKFLOW_PAT != '' }}
+        # Auto-fix push is only attempted on same-repo PRs with WORKFLOW_PAT available.
+        # Fork PRs and push events (e.g., to main) fall back to check-only mode.
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ] && [ "$HAS_PAT" = "true" ] && [ "$IS_FORK" != "true" ]; then
+            echo "can_push=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "can_push=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v6
         with:
           path: ${{ env.UNDER_TEST_FOLDER }}
+          # When pushable, check out the PR branch tip (not the merge ref) with the PAT so the auto-fix commit can be pushed back.
+          ref: ${{ steps.push_mode.outputs.can_push == 'true' && github.head_ref || '' }}
+          token: ${{ steps.push_mode.outputs.can_push == 'true' && secrets.WORKFLOW_PAT || github.token }}
       - uses: actions/checkout@v6
         if: ${{ inputs.smelter_required }}
         with:
@@ -86,11 +108,46 @@ jobs:
           latest: true
       - name: Print docker version
         run: docker --version
+      - name: Apply scalafmt and scalafix auto-fixes
+        if: steps.push_mode.outputs.can_push == 'true'
+        id: autofix
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
+        env:
+          MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ vars.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
+          MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
+          LD_LIBRARY_PATH: "./"
+        run: |
+          sbt scalafmtAll scalafixAll
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Commit and push auto-fixes
+        if: steps.autofix.outputs.changed == 'true'
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          git config user.email ops@ironcorelabs.com
+          git config user.name "Leeroy Travis"
+          git add -A
+          git commit -m "Apply scalafmt and scalafix auto-fixes"
+          git push origin "HEAD:$HEAD_REF"
+          echo "::notice::scalafmt/scalafix auto-fixes were applied and pushed. CI will re-run on the new commit."
+      - name: Check scalafmt and scalafix
+        if: steps.push_mode.outputs.can_push != 'true'
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
+        env:
+          MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ vars.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
+          MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
+          LD_LIBRARY_PATH: "./"
+        run: sbt scalafmtCheckAll "scalafixAll --check"
       - name: Build and test
+        if: steps.autofix.outputs.changed != 'true'
         working-directory: ${{ env.UNDER_TEST_FOLDER }}
         env:
           MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ vars.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
           MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
           LD_LIBRARY_PATH: "./" # If a release was downloaded, it would be here. If not, no harm done.
-        # See https://github.com/IronCoreLabs/backup-kafka/issues/102, this -D should be removed once not needed
-        run: sbt -Dhttps.protocols=TLSv1.2,TLSv1.1,TLSv1 scalafmtCheckAll scalastyle ${{ inputs.coverage && 'coverage' || '' }} ${{ inputs.test_command }} ${{ inputs.coverage && 'coverageReport' || '' }}
+        run: sbt ${{ inputs.coverage && 'coverage' || '' }} ${{ inputs.test_command }} ${{ inputs.coverage && 'coverageReport' || '' }}
