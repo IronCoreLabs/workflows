@@ -163,7 +163,7 @@ jobs:
               RUNS_ON=ubuntu-24.04
               ;;
             arm64)
-              RUNS_ON=icl-ubuntu-24-arm
+              RUNS_ON=ubuntu-24.04-arm
               ;;
             *)
               echo "Unknown arch '$A'"
@@ -224,14 +224,23 @@ jobs:
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
       - name: Install clamav
-        if: ${{ ! contains(matrix.runs_on, 'self-hosted') }}
         run: |
           sudo apt-get update
           sudo apt-get install -y clamav
           sudo sed -i -e 's/^ReceiveTimeout.*/ReceiveTimeout 300/' /etc/clamav/freshclam.conf
           sudo systemctl stop clamav-freshclam
-          sudo freshclam
-          sudo systemctl start clamav-freshclam
+          # actions/cache runs as the runner user; let it restore into /var/lib/clamav.
+          sudo chown -R "$USER" /var/lib/clamav
+      - name: Cache ClamAV virus database
+        uses: actions/cache@v4
+        with:
+          path: /var/lib/clamav
+          # Unique key per run forces a fresh save; restore-keys pulls the most recent cache so
+          # freshclam only has to do an incremental update instead of a full ~250MB download.
+          key: clamav-${{ runner.arch }}-${{ github.run_id }}
+          restore-keys: clamav-${{ runner.arch }}-
+      - name: Refresh virus database
+        run: sudo freshclam
       - name: Decrypt files
         if: inputs.additional_decryption_files != ''
         uses: IronCoreLabs/ironhide-actions/decrypt@v3
@@ -278,7 +287,7 @@ jobs:
       - name: Scan docker image
         run: |
           docker save -o /tmp/docker.tar "${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
-          clamscan /tmp/docker.tar
+          clamscan --max-filesize=500M /tmp/docker.tar
       - name: Push it!
         run: docker push "${{ steps.name.outputs.canonical }}-${{ steps.arch.outputs.arch }}"
       - name: Tag and push additional image
