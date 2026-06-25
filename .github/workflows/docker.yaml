@@ -240,7 +240,12 @@ jobs:
           key: clamav-${{ runner.arch }}-${{ github.run_id }}
           restore-keys: clamav-${{ runner.arch }}-
       - name: Refresh virus database
-        run: sudo freshclam
+        run: |
+          # Hand /var/lib/clamav back to the clamav user — freshclam drops privileges
+          # to DatabaseOwner (clamav) before writing, and would otherwise fail with
+          # "Can't create temporary directory" on the runner-owned dir.
+          sudo chown -R clamav:clamav /var/lib/clamav
+          sudo freshclam
       - name: Decrypt files
         if: inputs.additional_decryption_files != ''
         uses: IronCoreLabs/ironhide-actions/decrypt@v3
