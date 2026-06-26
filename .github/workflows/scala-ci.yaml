@@ -117,7 +117,7 @@ jobs:
           MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
           LD_LIBRARY_PATH: "./"
         run: |
-          sbt scalafmtAll scalafixAll
+          sbt ";scalafmtAll ;scalafixAll"
           if [ -n "$(git status --porcelain)" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
@@ -133,7 +133,7 @@ jobs:
         run: |
           git config user.email ops@ironcorelabs.com
           git config user.name "Leeroy Travis"
-          git add -A
+          git add -u
           git commit -m "Apply scalafmt and scalafix auto-fixes"
           git push origin "HEAD:$HEAD_REF"
           echo "::error::scalafmt/scalafix auto-fixes were applied and pushed. CI will re-run on the new commit. Failing this run so the unformatted commit is visibly flagged."
@@ -145,7 +145,7 @@ jobs:
           MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID: ${{ vars.MAVEN_IRONCORELABS_COM_AWS_ACCESS_KEY_ID }}
           MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY: ${{ secrets.MAVEN_IRONCORELABS_COM_AWS_SECRET_KEY }}
           LD_LIBRARY_PATH: "./"
-        run: sbt scalafmtCheckAll "scalafixAll --check"
+        run: sbt ";scalafmtCheckAll ;scalafixAll --check"
       - name: Build and test
         if: steps.autofix.outputs.changed != 'true'
         working-directory: ${{ env.UNDER_TEST_FOLDER }}
