@@ -123,18 +123,21 @@ jobs:
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Commit and push auto-fixes
+      - name: Commit and push auto-fixes, then fail
         if: steps.autofix.outputs.changed == 'true'
         working-directory: ${{ env.UNDER_TEST_FOLDER }}
         env:
           HEAD_REF: ${{ github.head_ref }}
+        # Push the fix so CI re-runs cleanly on the new commit, then fail this run
+        # so the dev sees a red signal that their PR needed auto-formatting.
         run: |
           git config user.email ops@ironcorelabs.com
           git config user.name "Leeroy Travis"
           git add -A
           git commit -m "Apply scalafmt and scalafix auto-fixes"
           git push origin "HEAD:$HEAD_REF"
-          echo "::notice::scalafmt/scalafix auto-fixes were applied and pushed. CI will re-run on the new commit."
+          echo "::error::scalafmt/scalafix auto-fixes were applied and pushed. CI will re-run on the new commit. Failing this run so the unformatted commit is visibly flagged."
+          exit 1
       - name: Check scalafmt and scalafix
         if: steps.push_mode.outputs.can_push != 'true'
         working-directory: ${{ env.UNDER_TEST_FOLDER }}
