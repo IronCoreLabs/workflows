@@ -21,7 +21,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: cargo package
       - name: Dry run the publish
         if: inputs.dry_run

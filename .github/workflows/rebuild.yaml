@@ -29,7 +29,7 @@ jobs:
         ref: ${{ fromJSON(inputs.refs) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ matrix.ref }}
           token: ${{ secrets.WORKFLOW_PAT }}
