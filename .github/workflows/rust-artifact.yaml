@@ -61,7 +61,7 @@ jobs:
         rust_target: "${{ fromJSON(inputs.build_matrix_rust_target) }}"
         include: ${{ fromJSON(inputs.matrix_include) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install additional dependencies
         if: ${{ inputs.additional_system_deps != '' }}
         run: |

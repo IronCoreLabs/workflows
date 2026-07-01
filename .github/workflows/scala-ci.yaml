@@ -69,13 +69,13 @@ jobs:
           else
             echo "can_push=false" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           path: ${{ env.UNDER_TEST_FOLDER }}
           # When pushable, check out the PR branch tip (not the merge ref) with the PAT so the auto-fix commit can be pushed back.
           ref: ${{ steps.push_mode.outputs.can_push == 'true' && github.head_ref || '' }}
           token: ${{ steps.push_mode.outputs.can_push == 'true' && secrets.WORKFLOW_PAT || github.token }}
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: ${{ inputs.smelter_required }}
         with:
           repository: IronCoreLabs/sql-smelter

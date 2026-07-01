@@ -44,7 +44,7 @@ jobs:
         rust_target: "${{ fromJSON(inputs.rust_targets) }}"
         include: ${{ fromJSON(inputs.matrix_include) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Configure git ssh access
         run: |
           mkdir -p "${HOME}/.ssh"

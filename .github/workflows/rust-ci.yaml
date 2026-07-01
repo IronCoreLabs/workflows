@@ -107,10 +107,10 @@ jobs:
           echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           path: ${{ env.UNDER_TEST_FOLDER }}
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: ${{ inputs.smelter_required }}
         with:
           repository: IronCoreLabs/sql-smelter
@@ -175,10 +175,10 @@ jobs:
           echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           path: ${{ env.UNDER_TEST_FOLDER }}
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: ${{ inputs.smelter_required }}
         with:
           repository: IronCoreLabs/sql-smelter
@@ -252,7 +252,7 @@ jobs:
           echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           path: ${{ env.UNDER_TEST_FOLDER }}
       - uses: IronCoreLabs/rust-toolchain@v1
@@ -283,7 +283,7 @@ jobs:
           echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           path: ${{ env.UNDER_TEST_FOLDER }}
       - name: Install additional dependencies
