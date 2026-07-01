@@ -232,7 +232,7 @@ jobs:
           # actions/cache runs as the runner user; let it restore into /var/lib/clamav.
           sudo chown -R "$USER" /var/lib/clamav
       - name: Cache ClamAV virus database
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /var/lib/clamav
           # Unique key per run forces a fresh save; restore-keys pulls the most recent cache so
