@@ -43,9 +43,12 @@ for FILE in ${VERSFILES} ; do
         VERS=$(grep "const Version" < "${FILE}" | sed -e 's/^[^"]*"//' -e 's/"$//')
         ;;
     package.json)
-        # get the root package's name.
-        ROOTJSNAME="$(jq -re '.name' < package.json)"
-        if [ "$(dirname "${FILE}")" = "." ] || ! VERS=$(jq -re ".dependencies[\"${ROOTJSNAME}\"]" < "${FILE}") ; then
+        # get the root package's name, if there is a root package.json.
+        ROOTJSNAME=""
+        if [ -f package.json ] ; then
+            ROOTJSNAME="$(jq -re '.name' < package.json)"
+        fi
+        if [ "$(dirname "${FILE}")" = "." ] || [ -z "${ROOTJSNAME}" ] || ! VERS=$(jq -re ".dependencies[\"${ROOTJSNAME}\"]" < "${FILE}") ; then
             # This is the root package.json, so we want .version OR
             # This isn't directly dependant on the root package.json, so we assume we're in a monorepo (ie CB yarn workspaces).
             VERS=$(jq -re '.version' < "${FILE}")

@@ -59,9 +59,12 @@ for FILE in ${VERSFILES} ; do
         ;;
 
     package.json)
-        # Get the root package's name.
-        ROOTJSNAME="$(jq -re '.name' < package.json)"
-        if [ "${DIR}" = "." ] || ! jq -re ".dependencies[\"${ROOTJSNAME}\"]" < "${FILE}" ; then
+        # Get the root package's name, if there is a root package.json.
+        ROOTJSNAME=""
+        if [ -f package.json ] ; then
+            ROOTJSNAME="$(jq -re '.name' < package.json)"
+        fi
+        if [ "${DIR}" = "." ] || [ -z "${ROOTJSNAME}" ] || ! jq -re ".dependencies[\"${ROOTJSNAME}\"]" < "${FILE}" ; then
             # This is the root package.json, or we're assuming we're in a monorepo because we aren't dependant on the
             # root, so we want .version.
             jq --indent 4 ".version=\"${NEWVERS}\"" "${FILE}" > "${FILE}.new"
