@@ -19,4 +19,4 @@ The `move-tags.yaml` workflow runs on every push to `main` and reconciles tags w
 
 On pull requests the same workflow runs in report-only mode: its job summary lists the tags that merging will move, so reviewers can check that a breaking change got a new major version.
 
-Because tags are reconciled against content rather than individual pushes, the automation also catches up on any merges where tags didn't get moved. As a safety guard, it never moves a tag older than the newest one that exists for a workflow, so a stale or accidentally decremented `tag-version` comment can't clobber an old major version.
+Because tags are reconciled against content rather than individual pushes, the automation also catches up on any merges where tags didn't get moved. Misconfigurations fail the check: a reusable workflow or action with no parseable `tag-version` comment (it would never be released), or a declared version older than the newest existing tag (moving the old tag would break its consumers). Problems are reported in the PR comment, and no tags are moved on `main` until they're fixed.

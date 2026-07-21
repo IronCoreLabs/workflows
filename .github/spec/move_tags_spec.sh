@@ -124,11 +124,11 @@ Describe 'move-tags.list.sh'
         commit_all
         "$SCRIPT"
     }
-    It 'refuses to move a tag older than the newest existing one'
+    It 'fails rather than move a tag older than the newest existing one'
         When call decremented_version
         The output should equal ''
         The stderr should not equal ''
-        The status should be success
+        The status should be failure
     End
 
     reusable_without_version() {
@@ -137,11 +137,25 @@ Describe 'move-tags.list.sh'
         commit_all
         "$SCRIPT"
     }
-    It 'warns about a reusable workflow with no tag-version comment'
+    It 'fails for a reusable workflow with no tag-version comment'
         When call reusable_without_version
         The output should equal ''
         The stderr should not equal ''
-        The status should be success
+        The status should be failure
+    End
+
+    good_and_bad_workflows() {
+        setup_repo
+        reusable_workflow v1 > .github/workflows/foo.yaml
+        printf 'on:\n  workflow_call:\n' > .github/workflows/bad.yaml
+        commit_all
+        "$SCRIPT"
+    }
+    It 'still lists good tags while failing on a misconfigured workflow'
+        When call good_and_bad_workflows
+        The output should equal 'foo-v1'
+        The stderr should include 'bad'
+        The status should be failure
     End
 
     repo_ci_without_version() {

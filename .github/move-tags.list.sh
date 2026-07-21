@@ -8,8 +8,11 @@
 # "# tag-version: vN" comment in its yaml file. For each declaration, the tag "NAME-vN"
 # is printed on stdout if it doesn't exist, or if the workflow's files (the yaml file
 # plus any ".github/NAME.*.sh" helper scripts, or the action's directory) differ
-# between the tag and HEAD. Reusable files without a declaration are skipped with a
-# warning on stderr; this repo's own CI workflows are skipped silently.
+# between the tag and HEAD.
+#
+# A reusable workflow or action without a usable declaration is a misconfiguration:
+# it's reported on stderr and the script exits nonzero, after checking everything.
+# This repo's own CI workflows don't need declarations and are skipped silently.
 #
 # Must be run from the repo root, with HEAD at the commit tags should move to and all
 # existing tags fetched. The caller is expected to `git tag -f` and force push each
@@ -22,8 +25,11 @@ if [ "$#" -ne 0 ] ; then
     exit 1
 fi
 
+TAGS=()
+ERRORS=0
+
 # Check one workflow or action. Arguments are its name, the yaml file declaring its
-# version, and the pathspecs that make up its content. Prints the tag to move, if any.
+# version, and the pathspecs that make up its content. Appends to TAGS and sets ERRORS.
 check() {
     local name="$1"
     local vfile="$2"
@@ -34,7 +40,8 @@ check() {
     if [ -z "$version" ] ; then
         # Only reusable workflows and actions need a version; this repo's own CI doesn't.
         if [[ "$vfile" == .github/actions/* ]] || grep -q workflow_call "$vfile" ; then
-            echo "⚠️  $name: no '# tag-version: vN' comment in $vfile; it will never be released" 1>&2
+            echo "❌ $name: no '# tag-version: vN' comment in $vfile; it will never be released" 1>&2
+            ERRORS=1
         fi
         return 0
     fi
@@ -51,15 +58,16 @@ check() {
         fi
     done < <(git tag --list "$name-v*")
     if [ -n "$newest" ] && [ "$newest" -gt "$version" ] ; then
-        echo "⚠️  $name: tag $name-v$newest exists but $vfile declares v$version; fix the comment" 1>&2
+        echo "❌ $name: tag $name-v$newest exists but $vfile declares v$version; fix the comment" 1>&2
+        ERRORS=1
         return 0
     fi
 
     local tag="$name-v$version"
     if ! git rev-parse -q --verify "refs/tags/$tag" > /dev/null ; then
-        echo "$tag"
+        TAGS+=("$tag")
     elif ! git diff --quiet "refs/tags/$tag" HEAD -- "$@" ; then
-        echo "$tag"
+        TAGS+=("$tag")
     fi
 }
 
@@ -83,4 +91,8 @@ check_all() {
     done
 }
 
-check_all | sort
+check_all
+if [ "${#TAGS[@]}" -gt 0 ] ; then
+    printf '%s\n' "${TAGS[@]}" | sort
+fi
+exit "$ERRORS"

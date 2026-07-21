@@ -2,8 +2,7 @@
 
 ## Bootstrapping
 
-To get workflows set up in a repository, follow these steps. Some of these steps aren't required for these workflows, but they're
-collected here to make all our repositories consistent.
+To get workflows set up in a repository, follow these steps. Some of these steps aren't required for these workflows, but they're collected here to make all our repositories consistent.
 
 1. In the GitHub web UI:
    1. Under `General settings`
@@ -22,18 +21,14 @@ collected here to make all our repositories consistent.
    1. Under `Code security and analysis`, enable all the things.
 1. Review the `.github/CODEOWNERS` file. It's unrelated to the workflows, but now's a good chance to check it.
    - Make sure the any groups appearing in `CODEOWNERS` have been granted at least `Write` access to the repository.
-1. Examine existing tags and make sure they're compatible with the new system: It will set tags based on the contents of the
-   language-specific version file. If necessary, manually adjust versions so there will be no conflicts.
-1. Edit the language-specific version file (`package.json`, `Cargo.toml`, `version.sbt`) and increment to the next pre-release
-   version. (E.g., `1.2.3` -> `1.2.4-pre`) Once your PR is merged, `main` should always be a pre-release.
-1. Decide which workflows you're going to use. For a service, it'll likely be:
-   `bump-version.yaml docker.yaml deploy.yaml` plus a language-specific CI workflow.
+1. Examine existing tags and make sure they're compatible with the new system: It will set tags based on the contents of the language-specific version file. If necessary, manually adjust versions so there will be no conflicts.
+1. Edit the language-specific version file (`package.json`, `Cargo.toml`, `version.sbt`) and increment to the next pre-release version. (E.g., `1.2.3` -> `1.2.4-pre`) Once your PR is merged, `main` should always be a pre-release.
+1. Decide which workflows you're going to use. For a service, it'll likely be: `bump-version.yaml docker.yaml deploy.yaml` plus a language-specific CI workflow.
 1. Commit those changes on a branch. Push, PR, and merge.
 
 ## Continuous Deployment
 
-These workflows are modular components of a system to manage "deployments" when a PR is merged to `main`. A "deployment" could mean
-updating a deployment in Kubernetes, or it could mean publishing a new release of a public repository.
+These workflows are modular components of a system to manage "deployments" when a PR is merged to `main`. A "deployment" could mean updating a deployment in Kubernetes, or it could mean publishing a new release of a public repository.
 
 1. bump-version: Bumps the patch version.
    - Triggered by merge to main.
@@ -50,33 +45,19 @@ updating a deployment in Kubernetes, or it could mean publishing a new release o
 
 ### Authentication
 
-Several actions require a secret called `WORKFLOW_PAT` to be set to the value
-of a personal access token with permissions to operate on various repos. A
-personal access token (PAT) has been created for the `leeroy-travis` user in
-GitHub, and the value of the token is put into two organization-wide secrets:
-the workflow secret WORKFLOW_PAT and also the Dependabot secret WORKFLOW_PAT.
+Several actions require a secret called `WORKFLOW_PAT` to be set to the value of a personal access token with permissions to operate on various repos. A personal access token (PAT) has been created for the `leeroy-travis` user in GitHub, and the value of the token is put into two organization-wide secrets: the workflow secret WORKFLOW_PAT and also the Dependabot secret WORKFLOW_PAT.
 
-The PAT has been configured with `workflow` and `admin:org.read:org`
-permissions.
+The PAT has been configured with `workflow` and `admin:org.read:org` permissions.
 
-To rotate the PAT, log in to leeroy-travis, go to Settings ... Developer
-settings ... Personal access tokens ... Tokens (classic). Select the
-"org WORKFLOW_PAT" token, then "Regenerate token". Set the expiration to
-"never" and save, then copy the value of the token. Then log in as an
-account that is an admin of the IronCore Labs GitHub organization, go to
-IronCore ... Settings ... Secrets and variables ... Actions". Edit the
-"WORKFLOW_PAT" secret, click "enter a new value", and paste the PAT value.
+To rotate the PAT, log in to leeroy-travis, go to Settings ... Developer settings ... Personal access tokens ... Tokens (classic). Select the "org WORKFLOW_PAT" token, then "Regenerate token". Set the expiration to "never" and save, then copy the value of the token. Then log in as an account that is an admin of the IronCore Labs GitHub organization, go to IronCore ... Settings ... Secrets and variables ... Actions". Edit the "WORKFLOW_PAT" secret, click "enter a new value", and paste the PAT value.
 
 Repeat this process for the "Dependabot" secrets, updating "WORKFLOW_PAT".
 
 ## Docker Hub
 
-We have a personal access token (PAT) that we use to authenticate to Docker Hub. Its purpose is to bypass rate limits on pulls
-from Docker Hub. It shouldn't be necessary on GitHub-owned runners, because they have a special deal with Docker. But on other
-runners it's important.
+We have a personal access token (PAT) that we use to authenticate to Docker Hub. Its purpose is to bypass rate limits on pulls from Docker Hub. It shouldn't be necessary on GitHub-owned runners, because they have a special deal with Docker. But on other runners it's important.
 
-The PAT is stored as an organization secret in GitHub, named `DOCKERHUB_TOKEN`. It corresponds to login information kept in
-`gdrive/IronCore Engineering/IT_Info/leeroy-travis/docker-hub-info.txt.iron`.
+The PAT is stored as an organization secret in GitHub, named `DOCKERHUB_TOKEN`. It corresponds to login information kept in `gdrive/IronCore Engineering/IT_Info/leeroy-travis/docker-hub-info.txt.iron`.
 
 To rotate the token:
 
@@ -85,6 +66,8 @@ To rotate the token:
 1. Log in to GitHub.
 1. Edit the organization secrets for IronCoreLabs, and replace the value of `DOCKERHUB_TOKEN`.
 
-### Workflow Tag Bumping
+## Workflow Tag Bumping
 
 Tags are moved automatically when PRs merge to `main`: each reusable workflow declares its major version in a `# tag-version: vN` comment, and the `move-tags.yaml` workflow creates or moves the matching tag. Increment the comment in your PR to release a breaking change as a new major version. See [RELEASING.md](RELEASING.md) for details.
+
+Note: a workflow file that doesn't contain `workflow_call` is treated as CI local to this repo — it's excluded from version checking and never gets a tag. The detection in `move-tags.list.sh` is a literal string match, not yaml parsing, so don't mention `workflow_call` in the comments of a local workflow or it will be mistaken for a reusable one and fail the version check.
