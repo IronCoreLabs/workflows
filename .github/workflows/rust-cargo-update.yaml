@@ -1,3 +1,4 @@
+# tag-version: v1
 # Run `cargo update` and open a PR with the results.
 
 name: Rust Cargo Update

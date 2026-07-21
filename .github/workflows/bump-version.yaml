@@ -1,3 +1,4 @@
+# tag-version: v1
 # This workflow does version management, bumping the patch version on the main branch after a PR is merged.
 
 # Requirements:

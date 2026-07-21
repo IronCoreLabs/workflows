@@ -1,3 +1,4 @@
+# tag-version: v2
 # This workflow builds a docker container, plus more:
 # - Performs a virus scan.
 # - Pushes the container to a registry.

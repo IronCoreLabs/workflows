@@ -1,0 +1,112 @@
+# Releases workflow changes by moving floating version tags (e.g. rust-ci-v1) to the
+# head of main. Which tags move is decided by move-tags.list.sh, which compares each
+# workflow's "# tag-version: vN" comment against the existing tags and their content.
+# On pull requests this only reports the tags that merging would move. See RELEASING.md.
+
+name: Move Workflow Tags
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  move-tags:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: List tags to move
+        id: list
+        run: |
+          set -euo pipefail
+          # Failure is reported at the end of the job, after the tag list and any
+          # problems have been surfaced in the summary and PR comment.
+          STATUS=0
+          .github/move-tags.list.sh > tags-to-move.txt 2> errors.txt || STATUS=$?
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          cat tags-to-move.txt
+          cat errors.txt 1>&2
+          {
+            if [ -s errors.txt ] ; then
+              echo '### Workflow version problems'
+              echo '```'
+              cat errors.txt
+              echo '```'
+            fi
+            if [ -s tags-to-move.txt ] ; then
+              echo '### Workflow tags to move to this commit'
+              echo '```'
+              cat tags-to-move.txt
+              echo '```'
+            fi
+            if [ ! -s errors.txt ] && [ ! -s tags-to-move.txt ] ; then
+              echo 'All workflow tags are up to date.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Report on PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # The marker identifies our comment so we update it instead of adding new ones,
+          # without disturbing other bot comments (e.g. the code coverage report).
+          MARKER='<!-- move-tags-report -->'
+          {
+            echo "$MARKER"
+            if [ -s errors.txt ] ; then
+              echo '❌ This PR has workflow version problems:'
+              echo '```'
+              cat errors.txt
+              echo '```'
+            fi
+            if [ -s tags-to-move.txt ] ; then
+              echo 'Merging this PR will move these workflow tags:'
+              echo '```'
+              cat tags-to-move.txt
+              echo '```'
+            elif [ ! -s errors.txt ] ; then
+              echo 'Merging this PR will not move any workflow tags.'
+            fi
+          } > comment.txt
+          post_comment() {
+            local existing
+            existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+              --jq ".[] | select(.body | startswith(\"$MARKER\")) | .id" | head -1)
+            if [ -n "$existing" ] ; then
+              gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" -F body=@comment.txt > /dev/null
+            elif [ -s tags-to-move.txt ] || [ -s errors.txt ] ; then
+              # Only create a comment when there's something to report.
+              gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@comment.txt > /dev/null
+            fi
+          }
+          # A read-only token (fork and Dependabot PRs) can't comment; the job summary
+          # still has the tag list, so don't fail the job over it.
+          post_comment || echo "::warning::Unable to post the PR comment; see the job summary for the tag list."
+      - name: Move tags
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.list.outputs.status == '0'
+        run: |
+          set -euo pipefail
+          while IFS= read -r TAG ; do
+            git tag -f "$TAG"
+            git push -f origin "refs/tags/$TAG"
+            echo "Moved $TAG to $(git rev-parse HEAD)"
+          done < tags-to-move.txt
+      - name: Fail on workflow version problems
+        env:
+          STATUS: ${{ steps.list.outputs.status }}
+        run: |
+          set -euo pipefail
+          if [ "$STATUS" != "0" ] ; then
+            cat errors.txt 1>&2
+            exit 1
+          fi

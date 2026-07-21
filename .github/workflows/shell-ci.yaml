@@ -1,3 +1,4 @@
+# tag-version: v0
 # Run CI for shell script projects. This runs shellspec.
 
 name: Shell CI

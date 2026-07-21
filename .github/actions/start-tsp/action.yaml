@@ -1,3 +1,4 @@
+# tag-version: v1
 # These reusable steps start a TSP docker image in the background and wait for it to report healthy
 # By default it will start the latest (highest semantic version) TSP from the dev artifact repository.
 # This can be overridden with a PR comment in the following form specifying the full GAR image name/tag:

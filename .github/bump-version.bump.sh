@@ -64,7 +64,11 @@ echo "release=${BUMP_VERSION_RELEASE_PREFIX}${RELEASEVERS}" >> "$GITHUB_OUTPUT"
 
 # Derive a new bumped version from the release version.
 # Increment the last number in the string.
-VERSION="$(echo "${RELEASEVERS}" | gawk '{ start=match($0, /(.*[^0-9])([0-9]+)([^0-9]*)$/, a) ; a[2] += 1 ; printf("%s%s%s", a[1], a[2], a[3]) }')"
+if ! [[ ${RELEASEVERS} =~ ^(.*[^0-9])([0-9]+)([^0-9]*)$ ]] ; then
+    echo "No number to increment in '${RELEASEVERS}'" 1>&2
+    exit 1
+fi
+VERSION="${BASH_REMATCH[1]}$(( 10#${BASH_REMATCH[2]} + 1 ))${BASH_REMATCH[3]}"
 # Replace [-.]rc[-.$] with pre.
 VERSION="$(echo "${VERSION}" | sed -E 's/([-.])rc([-.]|$)/\1pre\2/')"
 # If no [-.]pre[-.$], then append -pre.

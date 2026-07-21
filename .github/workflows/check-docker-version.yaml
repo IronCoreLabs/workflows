@@ -1,3 +1,4 @@
+# tag-version: v0
 # This workflow works with bump-version.yaml to ensure that the version in the
 # Dockerfile is consistent with what's in the version file. If not, it aborts the
 # workflow so a human can fix it. This is meant to run on every commit to a PR.

@@ -1,3 +1,4 @@
+# tag-version: v1
 # Publish Typescript code to NPM. This will use Trusted Publishing
 # (https://docs.npmjs.com/trusted-publishers#supported-cicd-providers), so ensure it's set up for the calling repo.
 
