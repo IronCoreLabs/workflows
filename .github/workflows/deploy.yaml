@@ -1,3 +1,4 @@
+# tag-version: v1
 # This workflow updates files in the deployments repository, to use a new version of a docker image.
 
 # 1. Make a PR to update the generic recipe of the application to use the new container image.

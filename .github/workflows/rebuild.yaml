@@ -1,3 +1,4 @@
+# tag-version: v0
 # Periodically rebuild container images by bumping the version.
 # If being used with `refs`, ensure that the all the branches provided are under
 # different major versions (for example, docker-jdk v17 and v21).

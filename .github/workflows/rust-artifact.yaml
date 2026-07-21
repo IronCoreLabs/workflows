@@ -1,3 +1,4 @@
+# tag-version: v0
 # Builds the release binary for Rust projects and uploads them as artifacts.
 
 # Customization:

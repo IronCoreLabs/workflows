@@ -1,0 +1,47 @@
+# Releases workflow changes by moving floating version tags (e.g. rust-ci-v1) to the
+# head of main. Which tags move is decided by move-tags.list.sh, which compares each
+# workflow's "# tag-version: vN" comment against the existing tags and their content.
+# On pull requests this only reports the tags that merging would move. See RELEASING.md.
+
+name: Move Workflow Tags
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  move-tags:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: List tags to move
+        run: |
+          set -euo pipefail
+          .github/move-tags.list.sh | tee tags-to-move.txt
+          if [ -s tags-to-move.txt ] ; then
+            {
+              echo "### Workflow tags to move to this commit"
+              echo '```'
+              cat tags-to-move.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "All workflow tags are up to date." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Move tags
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          while IFS= read -r TAG ; do
+            git tag -f "$TAG"
+            git push -f origin "refs/tags/$TAG"
+            echo "Moved $TAG to $(git rev-parse HEAD)"
+          done < tags-to-move.txt

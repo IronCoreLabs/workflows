@@ -1,3 +1,4 @@
+# tag-version: v3
 # CI for Rust projects. This compiles (using sccache), runs tests, and checks formatting.
 
 # Customization:

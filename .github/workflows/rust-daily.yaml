@@ -1,3 +1,4 @@
+# tag-version: v1
 # Daily CI for Rust projects. This runs `cargo check` on all the provided targets/toolchains.
 
 # Customization:

@@ -1,3 +1,4 @@
+# tag-version: v2
 # CI for Scala projects. This compiles, runs tests, applies scalafmt + scalafix auto-fixes (pushing them back
 # to the PR branch when possible), and produces a coverage report.
 

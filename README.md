@@ -87,20 +87,4 @@ To rotate the token:
 
 ### Workflow Tag Bumping
 
-After making **non-breaking** changes to GitHub Actions workflows in `.github/workflows`, you can use the `move-workflow-tags.sh` script to get commands to bump the corresponding tags.
-
-**Usage:**
-
-```bash
-# Bump tags for workflows changed in the last commit
-./move-workflow-tags.sh
-
-# Bump tags for a specific commit
-./move-workflow-tags.sh <commit-hash>
-
-# Bump tags for a commit range
-./move-workflow-tags.sh <start-commit>..<end-commit>
-```
-
-The script will indicate which workflows were changed in the commit(s) and allow you to choose which ones to move the tags for. It will then
-display all the commands to run.
+Tags are moved automatically when PRs merge to `main`: each reusable workflow declares its major version in a `# tag-version: vN` comment, and the `move-tags.yaml` workflow creates or moves the matching tag. Increment the comment in your PR to release a breaking change as a new major version. See [RELEASING.md](RELEASING.md) for details.
