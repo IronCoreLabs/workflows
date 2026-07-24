@@ -79,6 +79,29 @@ on:
         type: boolean
         required: false
         default: false
+      buildkit_cache:
+        description: >-
+          When true, the `RUN --mount=type=cache` mounts declared in the
+          caller's Dockerfile are auto-discovered and persisted across runs
+          via actions/cache + buildkit-cache-dance, giving incremental builds
+          on ephemeral runners. Note that actions/cache has a 10GB-per-repo
+          quota; on eviction the build still succeeds, just cold.
+        type: boolean
+        required: false
+        default: false
+      buildkit_cache_key_files:
+        description: >-
+          Newline-separated glob patterns hashed into the buildkit cache key.
+          When a matched file changes the key rotates (the most recent
+          same-arch cache is still restored as a starting point, and the
+          refreshed contents are saved under the new key). Only meaningful
+          with buildkit_cache.
+        type: string
+        required: false
+        default: |-
+          **/Cargo.lock
+          **/rust-toolchain.toml
+          **/Dockerfile
 
 jobs:
   image:
@@ -274,6 +297,29 @@ jobs:
       - name: Extra commands
         if: inputs.extra_commands != ''
         run: ${{ inputs.extra_commands }}
+      # These two steps persist the Dockerfile's `RUN --mount=type=cache`
+      # mounts across runs (see the buildkit_cache input). Restore and
+      # injection happen here; extraction back out of the builder and the
+      # cache upload happen automatically in the actions' post steps, in that
+      # order, after the build.
+      - name: Restore buildkit cache mounts
+        id: buildkit-cache
+        if: inputs.buildkit_cache
+        uses: actions/cache@v6
+        with:
+          path: cache-mount
+          key: buildkit-cache-${{ steps.arch.outputs.arch }}-${{ hashFiles(inputs.buildkit_cache_key_files) }}
+          restore-keys: |
+            buildkit-cache-${{ steps.arch.outputs.arch }}-
+      - name: Inject buildkit cache mounts
+        if: inputs.buildkit_cache
+        uses: reproducible-containers/buildkit-cache-dance@v3
+        with:
+          cache-dir: cache-mount
+          dockerfile: Dockerfile
+          # On an exact key hit the cache won't be re-uploaded, so skip the
+          # (slow) extraction from the builder too.
+          skip-extraction: ${{ steps.buildkit-cache.outputs.cache-hit }}
       - name: Build docker (Default)
         if: inputs.build_command == ''
         run: |
