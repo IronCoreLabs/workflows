@@ -37,7 +37,18 @@ for FILE in ${VERSFILES} ; do
         VERS=$(cat "${FILE}")
         ;;
     Cargo.toml)
-        VERS=$(cargo metadata --manifest-path "${FILE}" --no-deps --offline --format-version 1 | jq -re '.packages[0].version')
+        # read-manifest reports only the package this manifest defines. `cargo metadata` resolves the
+        # entire workspace no matter which member it's pointed at and orders packages alphabetically,
+        # so it returned whichever member sorted first instead of the file we're reading.
+        if ! MANIFEST_JSON=$(cargo read-manifest --manifest-path "${FILE}" 2>&1) ; then
+            # A virtual manifest defines no package, so it has no version to contribute.
+            if [[ ${MANIFEST_JSON} == *"is a virtual manifest"* ]] ; then
+                continue
+            fi
+            echo "${MANIFEST_JSON}" 1>&2
+            exit 1
+        fi
+        VERS=$(echo "${MANIFEST_JSON}" | jq -re '.version')
         ;;
     version.go)
         VERS=$(grep "const Version" < "${FILE}" | sed -e 's/^[^"]*"//' -e 's/"$//')
