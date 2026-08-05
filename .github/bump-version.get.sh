@@ -28,6 +28,8 @@ if [ -z "${VERSFILES}" ] ; then
 fi
 
 # Read the versions.
+CARGOERR=$(mktemp)
+trap 'rm -f "${CARGOERR}"' EXIT
 CURRENTVERS=""
 for FILE in ${VERSFILES} ; do
     # Parse each version file according to its type.
@@ -40,12 +42,20 @@ for FILE in ${VERSFILES} ; do
         # read-manifest reports only the package this manifest defines. `cargo metadata` resolves the
         # entire workspace no matter which member it's pointed at and orders packages alphabetically,
         # so it returned whichever member sorted first instead of the file we're reading.
-        if ! MANIFEST_JSON=$(cargo read-manifest --manifest-path "${FILE}" 2>&1) ; then
-            # A virtual manifest defines no package, so it has no version to contribute.
-            if [[ ${MANIFEST_JSON} == *"is a virtual manifest"* ]] ; then
-                continue
-            fi
-            echo "${MANIFEST_JSON}" 1>&2
+        # Stderr goes to a file rather than into the captured stdout: when the repo pins a toolchain
+        # that isn't installed yet, the rustup shim writes "info: ..." progress lines there, and
+        # merging them with 2>&1 handed them to jq as if they were the manifest.
+        CARGOSTATUS=0
+        MANIFEST_JSON=$(cargo read-manifest --manifest-path "${FILE}" 2>"${CARGOERR}") || CARGOSTATUS=$?
+        # A virtual manifest defines no package, so it has no version to contribute. We expect that,
+        # so swallow the complaint cargo makes about it.
+        if [ "${CARGOSTATUS}" -ne 0 ] && grep -q "is a virtual manifest" "${CARGOERR}" ; then
+            continue
+        fi
+        # The file is only a holding pen to keep stderr away from jq. Anything else cargo had to say
+        # still reaches the log, whether or not it succeeded.
+        cat "${CARGOERR}" 1>&2
+        if [ "${CARGOSTATUS}" -ne 0 ] ; then
             exit 1
         fi
         VERS=$(echo "${MANIFEST_JSON}" | jq -re '.version')

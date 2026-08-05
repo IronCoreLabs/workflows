@@ -6,9 +6,24 @@ Describe 'bump-version.get.sh'
     setup_repo() {
         REPO=$(mktemp -d)
         mkdir -p "${REPO}/.git"
+        ORIGPATH="${PATH}"
     }
     cleanup_repo() {
         rm -rf "${REPO}"
+        PATH="${ORIGPATH}"
+    }
+
+    # Stands in for the rustup shim, which announces itself on stderr while it installs a pinned
+    # toolchain before handing off to the real cargo.
+    stub_noisy_cargo() {
+        mkdir -p "${REPO}/.stub-bin"
+        {
+            printf '#!/bin/sh\n'
+            printf "echo \"info: syncing channel updates for '1.93.1-x86_64-unknown-linux-gnu'\" 1>&2\n"
+            printf 'exec %s "$@"\n' "$(command -v cargo)"
+        } > "${REPO}/.stub-bin/cargo"
+        chmod +x "${REPO}/.stub-bin/cargo"
+        PATH="${REPO}/.stub-bin:${PATH}"
     }
 
     write_crate() {
@@ -69,5 +84,25 @@ Describe 'bump-version.get.sh'
         When call run_get
         The output should equal "4.5.6-pre"
         The status should be success
+    End
+
+    # Regression: cargo's stderr was folded into its stdout with 2>&1, so any chatter ahead of the
+    # JSON reached jq and it died with "Invalid numeric literal". Keeping the two apart must not cost
+    # us the chatter itself, which is worth having in the log.
+    It 'keeps cargo chatter out of the parsed json but still logs it'
+        write_crate . solo 9.8.7-pre
+        stub_noisy_cargo
+        When call run_get
+        The output should equal "9.8.7-pre"
+        The stderr should include "syncing channel updates"
+        The status should be success
+    End
+
+    It 'still reports cargo errors that are not a virtual manifest'
+        printf 'this is not valid toml\n' > "${REPO}/Cargo.toml"
+        When call run_get
+        The output should equal ""
+        The stderr should not equal ""
+        The status should be failure
     End
 End
