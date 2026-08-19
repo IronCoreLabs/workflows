@@ -22,18 +22,38 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: cargo package
+      # The token request intermittently gets an empty-bodied 429 from crates.io's edge, keyed on the
+      # runner's shared egress IP. The action sends one request and never retries, so the attempts
+      # are spelled out here; a `uses:` step can't be looped. Each one re-fetches its own OIDC token.
       - name: Get a short-lived crates.io token
         id: auth
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: rust-lang/crates-io-auth-action@v1
+      - if: steps.auth.outcome == 'failure'
+        run: sleep 15
+      - name: Get a short-lived crates.io token (attempt 2)
+        id: auth2
+        if: steps.auth.outcome == 'failure'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: rust-lang/crates-io-auth-action@v1
+      - if: steps.auth.outcome == 'failure' && steps.auth2.outcome == 'failure'
+        run: sleep 45
+      - name: Get a short-lived crates.io token (attempt 3)
+        id: auth3
+        if: steps.auth.outcome == 'failure' && steps.auth2.outcome == 'failure'
+        timeout-minutes: 2
         uses: rust-lang/crates-io-auth-action@v1
       - name: Dry run the publish
         if: inputs.dry_run
         env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token || steps.auth2.outputs.token || steps.auth3.outputs.token }}
         run: cargo publish --dry-run
       - name: Publish!
         if: ${{ !inputs.dry_run }}
         env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token || steps.auth2.outputs.token || steps.auth3.outputs.token }}
         run: cargo publish
       - name: Mark GitHub release as not prerelease
         if: ${{ !inputs.dry_run && github.event.release != null }}
