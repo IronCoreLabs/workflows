@@ -1,5 +1,8 @@
-# tag-version: v1
-# Release to crates.io for Rust projects.
+# tag-version: v2
+# Release to crates.io for Rust projects. This uses Trusted Publishing
+# (https://crates.io/docs/trusted-publishing), so each crate needs a config on crates.io naming this
+# repo's owner, the calling repo, and the filename of the workflow that calls this one. crates.io
+# reads those from the caller's OIDC claims, so it never sees this shared workflow.
 
 name: Rust Release
 on:
@@ -9,26 +12,28 @@ on:
         type: boolean
         required: false
         default: false
-    secrets:
-      CRATES_IO_API_KEY:
-        description: "API key to use when publishing to crates.io"
-        required: true
 
 jobs:
   cargo-release:
-    env:
-      CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_API_KEY }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v7
       - run: cargo package
+      - name: Get a short-lived crates.io token
+        id: auth
+        uses: rust-lang/crates-io-auth-action@v1
       - name: Dry run the publish
         if: inputs.dry_run
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
         run: cargo publish --dry-run
       - name: Publish!
         if: ${{ !inputs.dry_run }}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
         run: cargo publish
       - name: Mark GitHub release as not prerelease
         if: ${{ !inputs.dry_run && github.event.release != null }}

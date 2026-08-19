@@ -66,6 +66,25 @@ To rotate the token:
 1. Log in to GitHub.
 1. Edit the organization secrets for IronCoreLabs, and replace the value of `DOCKERHUB_TOKEN`.
 
+## crates.io
+
+`rust-release.yaml` publishes with [Trusted Publishing](https://crates.io/docs/trusted-publishing) as of `rust-release-v2`: there's no API token, the job exchanges a GitHub OIDC token for one that's scoped to the crate and expires in 30 minutes. Each crate needs a config on crates.io before its first release on v2, or the publish fails.
+
+To set one up, you must already be an owner of a crate that has been published at least once. Go to the crate's `Settings` ... `Trusted Publishing`, `Add` a GitHub config, and fill in:
+
+| Field             | Value                                                                     |
+|-------------------|---------------------------------------------------------------------------|
+| Repository owner  | `IronCoreLabs`                                                            |
+| Repository name   | The crate's repo                                                          |
+| Workflow filename | The file in that repo that calls `rust-release.yaml`, e.g. `release.yaml` |
+| Environment       | Leave empty unless the repo defines a GitHub environment for releases     |
+
+The workflow filename is the caller's, not `rust-release.yaml`. crates.io identifies the publisher from the OIDC claims of the workflow run that GitHub started, which name the consuming repo and its entry workflow; this repo doesn't appear in the config at all. Repos publishing several crates need one config per crate, all naming the same workflow.
+
+Two constraints come from crates.io: it rejects the `pull_request_target` and `workflow_run` triggers, and a caller that sets a `permissions` block on the job calling `rust-release.yaml` has to include `id-token: write`, since a called workflow can't hold permissions its caller didn't grant.
+
+Running `rust-release.yaml` with `dry_run: true` also does the token exchange, so a dry run checks the crates.io config rather than just the packaging.
+
 ## Workflow Tag Bumping
 
 Tags are moved automatically when PRs merge to `main`: each reusable workflow declares its major version in a `# tag-version: vN` comment, and the `move-tags.yaml` workflow creates or moves the matching tag. Increment the comment in your PR to release a breaking change as a new major version. See [RELEASING.md](RELEASING.md) for details.
