@@ -83,7 +83,29 @@ The workflow filename is the caller's, not `rust-release.yaml`. crates.io identi
 
 Two constraints come from crates.io: it rejects the `pull_request_target` and `workflow_run` triggers, and a caller that sets a `permissions` block on the job calling `rust-release.yaml` has to include `id-token: write`, since a called workflow can't hold permissions its caller didn't grant.
 
-Running `rust-release.yaml` with `dry_run: true` also does the token exchange, so a dry run checks the crates.io config rather than just the packaging.
+Running `rust-release.yaml` with `dry_run: true` also does the token exchange, so a dry run checks the crates.io config rather than just the packaging. The rehearsal has to come from the registered workflow file, so callers expose it as a dispatch input rather than as a separate workflow:
+
+```yaml
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Rehearse the release without publishing, to check the crates.io Trusted Publishing config"
+        type: boolean
+        default: false
+
+jobs:
+  rust-release:
+    uses: IronCoreLabs/workflows/.github/workflows/rust-release.yaml@rust-release-v2
+    with:
+      # inputs is empty on release events, and '' fails dry_run's boolean type check.
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets: inherit
+```
+
+A caller with no `release` trigger can drop the `|| false`.
 
 ## Workflow Tag Bumping
 
