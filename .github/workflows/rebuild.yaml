@@ -5,10 +5,10 @@
 # This should _not_ be used for hotfix branches, as we don't bump versions in those cases.
 #
 # Usage:
-#   uses: IronCoreLabs/workflows/.github/workflows/rebuild.yaml@rebuild-v1
+#   uses: IronCoreLabs/workflows/.github/workflows/rebuild.yaml@rebuild-v0.0.0
 #
 # With multiple refs:
-#   uses: IronCoreLabs/workflows/.github/workflows/rebuild.yaml@rebuild-v1
+#   uses: IronCoreLabs/workflows/.github/workflows/rebuild.yaml@rebuild-v0.0.0
 #   with:
 #     refs: '["main", "release/v1"]'
 
