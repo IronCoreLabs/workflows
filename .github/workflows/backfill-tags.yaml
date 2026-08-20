@@ -1,0 +1,61 @@
+# One-shot backfill: gives every undotted major version tag (rust-ci-v2) a dotted twin
+# (rust-ci-v2.0.0) at the same commit. A consumer still on an older major is invisible
+# to Dependabot while it stays on the undotted name; once repinned to the twin, it gets
+# offered the current major. See RELEASING.md.
+#
+# The twins are as frozen as the tags they mirror: Move Workflow Tags only ever touches
+# the declared major, so nothing moves them afterwards. Nothing here is forced either —
+# only missing tags are created.
+
+name: Backfill Dotted Tags
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: List the tags instead of creating them
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Backfill dotted tags
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+
+          .github/backfill-tags.list.sh > tags.txt
+          cat tags.txt
+          if [ ! -s tags.txt ] ; then
+            echo 'Every undotted tag already has a dotted twin.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          {
+            echo '### Dotted twins to create'
+            echo '```'
+            cat tags.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$DRY_RUN" = "true" ] ; then
+            echo 'Dry run — no tags created.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          REFS=()
+          while read -r TAG COMMIT ; do
+            git tag "$TAG" "$COMMIT"
+            REFS+=("refs/tags/$TAG")
+          done < tags.txt
+          # One push, so a failure can't leave half the fleet visible to Dependabot.
+          git push origin "${REFS[@]}"
