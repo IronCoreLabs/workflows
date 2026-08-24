@@ -38,7 +38,7 @@ Describe 'move-tags.list.sh'
     }
     It 'creates the tag for a new workflow'
         When call new_workflow
-        The output should equal 'foo-v1'
+        The output should equal 'foo-v1.0.0'
         The status should be success
     End
 
@@ -46,7 +46,7 @@ Describe 'move-tags.list.sh'
         setup_repo
         reusable_workflow v1 > .github/workflows/foo.yaml
         commit_all
-        git tag foo-v1
+        git tag foo-v1.0.0
         "$SCRIPT"
     }
     It 'is quiet when the tag matches the content'
@@ -55,18 +55,31 @@ Describe 'move-tags.list.sh'
         The status should be success
     End
 
-    changed_workflow() {
+    legacy_tag_only() {
         setup_repo
         reusable_workflow v1 > .github/workflows/foo.yaml
         commit_all
         git tag foo-v1
+        "$SCRIPT"
+    }
+    It 'creates the dotted tag for a version that only has the legacy name'
+        When call legacy_tag_only
+        The output should equal 'foo-v1.0.0'
+        The status should be success
+    End
+
+    changed_workflow() {
+        setup_repo
+        reusable_workflow v1 > .github/workflows/foo.yaml
+        commit_all
+        git tag foo-v1.0.0
         printf '# a change\n' >> .github/workflows/foo.yaml
         commit_all
         "$SCRIPT"
     }
     It 'moves the tag when the workflow file changed'
         When call changed_workflow
-        The output should equal 'foo-v1'
+        The output should equal 'foo-v1.0.0'
         The status should be success
     End
 
@@ -74,7 +87,7 @@ Describe 'move-tags.list.sh'
         setup_repo
         reusable_workflow v1 > .github/workflows/foo.yaml
         commit_all
-        git tag foo-v1
+        git tag foo-v1.0.0
         printf 'docs\n' > README.md
         commit_all
         "$SCRIPT"
@@ -89,14 +102,14 @@ Describe 'move-tags.list.sh'
         setup_repo
         reusable_workflow v1 > .github/workflows/foo.yaml
         commit_all
-        git tag foo-v1
+        git tag foo-v1.0.0
         printf 'echo hi\n' > .github/foo.build.sh
         commit_all
         "$SCRIPT"
     }
     It 'moves the tag when a helper script changed'
         When call changed_helper_script
-        The output should equal 'foo-v1'
+        The output should equal 'foo-v1.0.0'
         The status should be success
     End
 
@@ -104,18 +117,34 @@ Describe 'move-tags.list.sh'
         setup_repo
         reusable_workflow v1 > .github/workflows/foo.yaml
         commit_all
-        git tag foo-v1
+        git tag foo-v1.0.0
         reusable_workflow v2 > .github/workflows/foo.yaml
         commit_all
         "$SCRIPT"
     }
     It 'creates the new tag on a major bump, leaving the old one alone'
         When call major_bump
-        The output should equal 'foo-v2'
+        The output should equal 'foo-v2.0.0'
         The status should be success
     End
 
     decremented_version() {
+        setup_repo
+        reusable_workflow v2 > .github/workflows/foo.yaml
+        commit_all
+        git tag foo-v2.0.0
+        reusable_workflow v1 > .github/workflows/foo.yaml
+        commit_all
+        "$SCRIPT"
+    }
+    It 'fails rather than move a tag older than the newest existing one'
+        When call decremented_version
+        The output should equal ''
+        The stderr should not equal ''
+        The status should be failure
+    End
+
+    decremented_past_legacy_tag() {
         setup_repo
         reusable_workflow v2 > .github/workflows/foo.yaml
         commit_all
@@ -124,8 +153,21 @@ Describe 'move-tags.list.sh'
         commit_all
         "$SCRIPT"
     }
-    It 'fails rather than move a tag older than the newest existing one'
-        When call decremented_version
+    It 'counts a legacy undotted tag when checking for a decrement'
+        When call decremented_past_legacy_tag
+        The output should equal ''
+        The stderr should not equal ''
+        The status should be failure
+    End
+
+    dotted_declaration() {
+        setup_repo
+        reusable_workflow v1.0.1 > .github/workflows/foo.yaml
+        commit_all
+        "$SCRIPT"
+    }
+    It 'fails for a tag-version comment carrying more than the major'
+        When call dotted_declaration
         The output should equal ''
         The stderr should not equal ''
         The status should be failure
@@ -153,7 +195,7 @@ Describe 'move-tags.list.sh'
     }
     It 'still lists good tags while failing on a misconfigured workflow'
         When call good_and_bad_workflows
-        The output should equal 'foo-v1'
+        The output should equal 'foo-v1.0.0'
         The stderr should include 'bad'
         The status should be failure
     End
@@ -176,14 +218,14 @@ Describe 'move-tags.list.sh'
         mkdir -p .github/actions/tsp
         printf '# tag-version: v1\nname: tsp\n' > .github/actions/tsp/action.yaml
         commit_all
-        git tag tsp-v1
+        git tag tsp-v1.0.0
         printf 'echo hi\n' > .github/actions/tsp/helper.sh
         commit_all
         "$SCRIPT"
     }
     It 'moves the tag when any file in a composite action changed'
         When call changed_action
-        The output should equal 'tsp-v1'
+        The output should equal 'tsp-v1.0.0'
         The status should be success
     End
 
@@ -196,8 +238,8 @@ Describe 'move-tags.list.sh'
     }
     It 'prints multiple tags sorted'
         When call multiple_workflows
-        The line 1 of output should equal 'bar-v2'
-        The line 2 of output should equal 'foo-v1'
+        The line 1 of output should equal 'bar-v2.0.0'
+        The line 2 of output should equal 'foo-v1.0.0'
         The status should be success
     End
 End

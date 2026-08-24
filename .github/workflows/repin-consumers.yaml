@@ -1,0 +1,160 @@
+# One-shot sweep to move consuming repos off the frozen undotted tags (rust-ci-v3) and
+# onto the dotted ones Dependabot can parse (rust-ci-v3.0.0). See RELEASING.md.
+#
+# With no inputs it scans every non-archived, non-fork repo in the org and repins the
+# ones that reference this repo. Run it with dry_run first: it prints the diff it would
+# open for each repo, without pushing anything.
+
+name: Repin Consumers
+
+on:
+  workflow_dispatch:
+    inputs:
+      repos:
+        description: Space-separated owner/repo list. Empty scans the whole org.
+        required: false
+        type: string
+      dry_run:
+        description: Print the diffs instead of opening PRs
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  repin:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Repin consumers
+        env:
+          # Editing another repo's .github/workflows needs a token with the workflow
+          # scope; the job's own token can't do it.
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
+          REPOS: ${{ inputs.repos }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          ORG: ${{ github.repository_owner }}
+          SOURCE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Only tags that exist become rewrite targets, so no consumer can be left
+          # pointing at a tag that was never published.
+          mapfile -t NEW_TAGS < <(git tag --list '*-v*.0.0' | sort)
+          if [ "${#NEW_TAGS[@]}" -eq 0 ] ; then
+            echo "::error::No dotted tags exist yet; let Move Workflow Tags run on main first."
+            exit 1
+          fi
+
+          gh auth setup-git
+          git config --global user.email ops@ironcorelabs.com
+          git config --global user.name "Leeroy Travis"
+
+          BRANCH=repin-workflow-tags
+          WORK=$(mktemp -d)
+          TITLE="Pin IronCore workflow tags to their dotted names"
+          cat > "$WORK/body.md" <<'EOF'
+          `IronCoreLabs/workflows` now publishes its floating tags under dotted names:
+          `rust-ci-v3.0.0` instead of `rust-ci-v3`. Same commit, same auto-updating
+          behavior — but Dependabot can parse the dotted form, so this repo will get a PR
+          when a workflow's next major ships.
+
+          The undotted tags are frozen and no longer move, so a repo left on them stops
+          receiving workflow updates entirely.
+
+          See https://github.com/IronCoreLabs/workflows/blob/main/RELEASING.md
+          EOF
+
+          if [ -n "$REPOS" ] ; then
+            # Unquoted on purpose: the input is a space-separated list.
+            # shellcheck disable=SC2086
+            set -- $REPOS
+          else
+            # Enumerating beats code search: search results are capped and index-lagged,
+            # and a repo missed here is one that silently stops receiving updates.
+            mapfile -t FOUND < <(gh repo list "$ORG" --source --no-archived --limit 1000 \
+              --json nameWithOwner --jq '.[].nameWithOwner')
+            if [ "${#FOUND[@]}" -eq 0 ] ; then
+              echo "::error::No repos found in $ORG."
+              exit 1
+            fi
+            set -- "${FOUND[@]}"
+            echo "Scanning $# repos in $ORG."
+          fi
+
+          SCANNED=$#
+          IRRELEVANT=0
+          for REPO in "$@" ; do
+            DIR="$WORK/${REPO//\//-}"
+            # blob:none keeps an 80-repo scan cheap. A shallow clone would be cheaper
+            # still, but pushing from one is not reliably accepted.
+            if ! git clone --quiet --filter=blob:none --no-tags "https://github.com/$REPO" "$DIR" ; then
+              echo "::warning::$REPO: clone failed, skipping"
+              continue
+            fi
+            pushd "$DIR" > /dev/null
+
+            mapfile -t FILES < <(git ls-files -- .github | grep -E '\.ya?ml$' || true)
+            if [ "${#FILES[@]}" -eq 0 ] || ! grep -q "$SOURCE_REPO/" "${FILES[@]}" ; then
+              IRRELEVANT=$((IRRELEVANT + 1))
+              popd > /dev/null
+              continue
+            fi
+
+            for NEW in "${NEW_TAGS[@]}" ; do
+              OLD="${NEW%.0.0}"
+              # Two expressions because the ref is usually the whole end of the line,
+              # and the quoted or commented form needs a trailing character to match on.
+              # Neither can match an already-dotted ref, so re-running is safe.
+              sed -E -i \
+                -e "s|@${OLD}[[:space:]]*\$|@${NEW}|" \
+                -e "s|@${OLD}([[:space:]\"'])|@${NEW}\1|g" \
+                "${FILES[@]}"
+            done
+
+            # Anything still on an undotted tag has no published dotted equivalent —
+            # a legacy major, say — and needs a person to decide where it should land.
+            LEFTOVER=$(grep -nE "$SOURCE_REPO/[^@[:space:]]+@[A-Za-z0-9-]+-v[0-9]+([[:space:]\"']|\$)" "${FILES[@]}" || true)
+            if [ -n "$LEFTOVER" ] ; then
+              echo "::warning::$REPO still references undotted tags:"
+              echo "$LEFTOVER"
+            fi
+
+            if git diff --quiet ; then
+              echo "- $REPO: already repinned" >> "$GITHUB_STEP_SUMMARY"
+            elif [ "$DRY_RUN" = "true" ] ; then
+              {
+                echo "<details><summary>$REPO</summary>"
+                echo
+                echo '```diff'
+                git --no-pager diff
+                echo '```'
+                echo '</details>'
+              } >> "$GITHUB_STEP_SUMMARY"
+            else
+              git checkout -q -b "$BRANCH"
+              git commit -qam "$TITLE"
+              git push -q -u origin "$BRANCH"
+              # Keep going if one repo refuses the PR; a half-finished sweep is worse
+              # than a reported failure.
+              if URL=$(gh pr create --title "$TITLE" --body-file "$WORK/body.md" 2>&1) ; then
+                echo "- $REPO: $URL" >> "$GITHUB_STEP_SUMMARY"
+              else
+                echo "::warning::$REPO: could not open a PR: $URL"
+                echo "- $REPO: PR failed, branch pushed" >> "$GITHUB_STEP_SUMMARY"
+              fi
+            fi
+
+            popd > /dev/null
+          done
+
+          {
+            echo
+            echo "Scanned $SCANNED repos; $IRRELEVANT don't reference $SOURCE_REPO."
+            if [ "$DRY_RUN" = "true" ] ; then
+              echo "Dry run — no branches pushed and no PRs opened."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

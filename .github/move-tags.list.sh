@@ -5,10 +5,10 @@
 # content. See RELEASING.md and move-tags.yaml for details.
 #
 # Each reusable workflow and composite action declares its major version in a
-# "# tag-version: vN" comment in its yaml file. For each declaration, the tag "NAME-vN"
-# is printed on stdout if it doesn't exist, or if the workflow's files (the yaml file
-# plus any ".github/NAME.*.sh" helper scripts, or the action's directory) differ
-# between the tag and HEAD.
+# "# tag-version: vN" comment in its yaml file. For each declaration, the tag
+# "NAME-vN.0.0" is printed on stdout if it doesn't exist, or if the workflow's files
+# (the yaml file plus any ".github/NAME.*.sh" helper scripts, or the action's
+# directory) differ between the tag and HEAD.
 #
 # A reusable workflow or action without a usable declaration is a misconfiguration:
 # it's reported on stderr and the script exits nonzero, after checking everything.
@@ -46,12 +46,22 @@ check() {
         return 0
     fi
 
+    # The parse above stops at the first dot, so a dotted declaration would be silently
+    # truncated to its major, discarding whatever the author meant by the rest. Since
+    # the tags are dotted, that's an easy comment to write by mistake.
+    if grep -qE '^# tag-version: v[0-9]+\.' "$vfile" ; then
+        echo "$name: $vfile declares a dotted version; the comment carries the major only, as 'v$version'" 1>&2
+        ERRORS=1
+        return 0
+    fi
+
     # Never touch a tag older than the newest existing one. That means the comment is
     # stale or was decremented, and moving the old tag would break its consumers.
     local newest=""
     local t n
     while IFS= read -r t ; do
         n="${t#"$name"-v}"
+        n="${n%%.*}"
         [[ "$n" =~ ^[0-9]+$ ]] || continue
         if [ -z "$newest" ] || [ "$n" -gt "$newest" ] ; then
             newest="$n"
@@ -63,7 +73,10 @@ check() {
         return 0
     fi
 
-    local tag="$name-v$version"
+    # Dotted because Dependabot only recognizes a bare "vN" ref when the "v" starts it:
+    # a prefixed "$name-v$version" is invisible to it, so consumers pinned to that name
+    # never get upgrade PRs. The tag still floats; the digits are for the parser only.
+    local tag="$name-v$version.0.0"
     if ! git rev-parse -q --verify "refs/tags/$tag" > /dev/null ; then
         TAGS+=("$tag")
     elif ! git diff --quiet "refs/tags/$tag" HEAD -- "$@" ; then
