@@ -1,15 +1,22 @@
-# tag-version: v1
+# tag-version: v2
 # These reusable steps start a TSP docker image in the background and wait for it to report healthy
 # By default it will start the latest (highest semantic version) TSP from the dev artifact repository.
 # This can be overridden with a PR comment in the following form specifying the full GAR image name/tag:
 # `TSP_IMAGE: {"tenant-security-proxy": "gcr.io/ironcore-dev-1/tenant-security-proxy:5.1.3-rc.0"}`
 # This overridden image can be from either our public or private artifact repositories.
 #
+# GCP access is via Workload Identity Federation as depot-ci@ironcore-dev-1, so the calling job needs
+# `id-token: write`. The reaction steps need `pull-requests: write`.
+#
 # Example usage (be sure to decrypt the env file first):
+# permissions:
+#   contents: read
+#   id-token: write
+#   pull-requests: write
+# steps:
 # - name: Start TSP
-#   uses: IronCoreLabs/workflows/.github/actions/start-tsp@start-tsp-v1.0.0
+#   uses: IronCoreLabs/workflows/.github/actions/start-tsp@start-tsp-v2.0.0
 #   with:
-#     gcloud-auth: ${{ secrets.GCLOUD_AUTH }}
 #     env-file-path: .github/.env.integration
 
 name: Get TSP image and run in background
@@ -19,10 +26,6 @@ description: >
 inputs:
   env-file-path:
     description: Path to the env file to pass to the TSP container (e.g. .github/.env.integration)
-    required: true
-  gcloud-auth:
-    description: >
-      Service account JSON used to authenticate gcloud (e.g. `secrets.GCLOUD_AUTH`). Must have permission to read gcr.io/ironcore-dev-1/tenant-security-proxy.
     required: true
   tsp-port:
     description: What port the TSP should bind (defaults to 7777).
@@ -83,16 +86,14 @@ runs:
       issue-number: ${{ steps.get_pr.outputs.pr }}
       comment-id: ${{ steps.find_comment.outputs.comment-id }}
       reactions: confused
-  - name: Configure gcloud
+  - name: Authenticate to GCP
+    uses: google-github-actions/auth@v3
+    with:
+      service_account: depot-ci@ironcore-dev-1.iam.gserviceaccount.com
+      workload_identity_provider: projects/660542197445/locations/global/workloadIdentityPools/github-actions/providers/github-actions
+  - name: Configure Docker
     shell: bash
-    run: |
-      set -euo pipefail
-      mkdir -p .github
-      cat > .github/gcloud-auth.json <<EOF
-      ${{ inputs.gcloud-auth }}
-      EOF
-      gcloud auth activate-service-account --key-file .github/gcloud-auth.json
-      gcloud auth configure-docker --quiet
+    run: gcloud auth configure-docker --quiet
   # Compute default tag = highest semantic version tag (e.g. "5.1.3-rc.0" or "5.1.3")
   # Only if we DON'T have an override image.
   - name: Compute default TSP major tag
