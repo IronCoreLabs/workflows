@@ -35,6 +35,10 @@ jobs:
 
   start_tsp:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v7
       - name: Save TSP env.integration to a file
@@ -45,5 +49,4 @@ jobs:
       - name: Start TSP
         uses: ./.github/actions/start-tsp
         with:
-          gcloud-auth: ${{ secrets.GCLOUD_AUTH }}
           env-file-path: .env.integration
