@@ -197,9 +197,16 @@ jobs:
               IMG_NAME="${{ inputs.image-override }}"
             fi
             if grep "${IMG_NAME}" Tiltfile ; then
-              sed "s,\(FROM ${IMG_NAME}\):[a-zA-Z0-9_.-]*,\\1:${{ inputs.tag }}," < Tiltfile > Tiltfile.new
-              mv Tiltfile.new Tiltfile
-              touch /tmp/changed-depot
+              # No "FROM " anchor: the Tiltfile's image() helper takes the tagged name as a gcr=
+              # argument and concatenates "FROM " at runtime. The bare name matches either form.
+              sed "s,\(${IMG_NAME}\):[a-zA-Z0-9_.-]*,\\1:${{ inputs.tag }}," < Tiltfile > Tiltfile.new
+              # The grep above matches whether or not the tag differs, and committing with nothing
+              # staged would fail the push step.
+              if ! cmp -s Tiltfile Tiltfile.new ; then
+                mv Tiltfile.new Tiltfile
+                touch /tmp/changed-depot
+              fi
+              rm -f Tiltfile.new
             fi
           done
           if [ -f /tmp/changed-depot ] ; then
