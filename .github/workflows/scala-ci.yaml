@@ -107,6 +107,7 @@ jobs:
           repository: ${{ inputs.download_release_binary_repo }}
           fileName: ${{ inputs.download_release_binary_name }}
           latest: true
+          out-file-path: ${{ env.UNDER_TEST_FOLDER }}
       - name: Print docker version
         run: docker --version
       - name: Apply scalafmt and scalafix auto-fixes
@@ -119,7 +120,7 @@ jobs:
           LD_LIBRARY_PATH: "./"
         run: |
           sbt ";scalafmtAll ;scalafixAll"
-          if [ -n "$(git status --porcelain)" ]; then
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
