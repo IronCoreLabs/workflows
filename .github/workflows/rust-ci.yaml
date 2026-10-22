@@ -260,7 +260,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           IS_FORK: ${{ github.event.pull_request.head.repo.fork }}
           HAS_PAT: ${{ secrets.WORKFLOW_PAT != '' }}
-        # Forks can't be pushed to and push events have no PR branch to fix, so both check only.
+        # On fork PRs, head_ref names a branch in the fork.
         run: |
           if [ "$EVENT_NAME" = "pull_request" ] && [ "$HAS_PAT" = "true" ] && [ "$IS_FORK" != "true" ]; then
             echo "can_push=true" >> "$GITHUB_OUTPUT"
@@ -288,8 +288,7 @@ jobs:
             SORT_ARGS=--workspace
           fi
           ${{inputs.cargo_command_env_vars}} cargo fmt --all
-          # --no-format keeps this to what --check actually fails on; its whitespace
-          # normalization is only a warning there.
+          # cargo sort --check fails only on ordering; formatting is a warning there.
           ${{inputs.cargo_command_env_vars}} cargo sort --no-format $SORT_ARGS
           if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -301,8 +300,7 @@ jobs:
         working-directory: ${{ env.UNDER_TEST_FOLDER }}
         env:
           HEAD_REF: ${{ github.head_ref }}
-        # Failing after the push is what makes the unformatted commit visible; the push alone
-        # would land a green run and nobody would know.
+        # Fails after the push so the unformatted commit is flagged.
         run: |
           git config user.email ops@ironcorelabs.com
           git config user.name "Leeroy Travis"
