@@ -1,5 +1,6 @@
 # tag-version: v3
-# CI for Rust projects. This compiles (using sccache), runs tests, and checks formatting.
+# CI for Rust projects. This compiles (using sccache), runs tests, and applies cargo fmt + cargo sort
+# auto-fixes (pushing them back to the PR branch when possible).
 
 # Customization:
 # - all customization should be available via inputs. If anything isn't available, try to add it to this as an input instead of copying and modifying directly
@@ -79,7 +80,7 @@ on:
         description: "AWS secret key to access our Rust tool cache S3 bucket."
         required: false
       WORKFLOW_PAT:
-        description: "GitHub PAT used to check out sql-smelter when smelter_required is true."
+        description: "GitHub PAT used to check out sql-smelter when smelter_required is true, and to push cargo fmt/cargo sort auto-fix commits back to PR branches. If absent, formatting falls back to check-only mode."
         required: false
 
 env:
@@ -253,24 +254,78 @@ jobs:
           echo '${{ secrets.LEEROY_PRIVATE_SSH_KEY }}' > "${HOME}/.ssh/id_ed25519"
           chmod 600 "${HOME}/.ssh/id_ed25519"
           ssh-keyscan github.com > "${HOME}/.ssh/known_hosts"
+      - name: Determine if auto-fix push is possible
+        id: push_mode
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          IS_FORK: ${{ github.event.pull_request.head.repo.fork }}
+          HAS_PAT: ${{ secrets.WORKFLOW_PAT != '' }}
+        # Forks can't be pushed to and push events have no PR branch to fix, so both check only.
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ] && [ "$HAS_PAT" = "true" ] && [ "$IS_FORK" != "true" ]; then
+            echo "can_push=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "can_push=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v7
         with:
           path: ${{ env.UNDER_TEST_FOLDER }}
+          # The branch tip rather than the merge ref, so the auto-fix commit can be pushed back.
+          ref: ${{ steps.push_mode.outputs.can_push == 'true' && github.head_ref || '' }}
+          token: ${{ steps.push_mode.outputs.can_push == 'true' && secrets.WORKFLOW_PAT || github.token }}
       - uses: IronCoreLabs/rust-toolchain@v1
         with:
           components: rustfmt
           working-directory: ${{ env.UNDER_TEST_FOLDER }}
-      - run: ${{inputs.cargo_command_env_vars}} cargo fmt --all -- --check
-        working-directory: ${{ env.UNDER_TEST_FOLDER }}
       - name: Install cargo-sort
         uses: taiki-e/install-action@cargo-sort
-      - run: |
-          if grep -q '\[workspace]' Cargo.toml ; then
-            ${{inputs.cargo_command_env_vars}} cargo sort --check --workspace
-          else
-            ${{inputs.cargo_command_env_vars}} cargo sort --check
-          fi
+      - name: Apply cargo fmt and cargo sort auto-fixes
+        if: steps.push_mode.outputs.can_push == 'true'
+        id: autofix
         working-directory: ${{ env.UNDER_TEST_FOLDER }}
+        run: |
+          if grep -q '\[workspace]' Cargo.toml ; then
+            SORT_ARGS=--workspace
+          fi
+          ${{inputs.cargo_command_env_vars}} cargo fmt --all
+          # --no-format keeps this to what --check actually fails on; its whitespace
+          # normalization is only a warning there.
+          ${{inputs.cargo_command_env_vars}} cargo sort --no-format $SORT_ARGS
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Commit and push auto-fixes, then fail
+        if: steps.autofix.outputs.changed == 'true'
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        # Failing after the push is what makes the unformatted commit visible; the push alone
+        # would land a green run and nobody would know.
+        run: |
+          git config user.email ops@ironcorelabs.com
+          git config user.name "Leeroy Travis"
+          git add -u
+          git commit -m "Apply cargo fmt and cargo sort auto-fixes"
+          git push origin "HEAD:$HEAD_REF"
+          echo "::error::cargo fmt/cargo sort auto-fixes were applied and pushed. CI will re-run on the new commit. Failing this run so the unformatted commit is visibly flagged."
+          exit 1
+      - name: Check cargo fmt
+        if: steps.push_mode.outputs.can_push != 'true'
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
+        run: ${{inputs.cargo_command_env_vars}} cargo fmt --all -- --check || { echo "::error::Formatting check failed. Run 'cargo fmt --all' locally and commit the result."; exit 1; }
+      - name: Check cargo sort
+        if: steps.push_mode.outputs.can_push != 'true'
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
+        run: |
+          if grep -q '\[workspace]' Cargo.toml ; then
+            SORT_ARGS=--workspace
+          fi
+          ${{inputs.cargo_command_env_vars}} cargo sort --check $SORT_ARGS || {
+            echo "::error::Cargo.toml ordering check failed. Run 'cargo sort' locally and commit the result."
+            exit 1
+          }
 
   clippy:
     name: Clippy
