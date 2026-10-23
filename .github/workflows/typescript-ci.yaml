@@ -1,5 +1,7 @@
 # tag-version: v1
-# CI tasks for Node (TypeScript, JavaScript) repositories.
+# CI tasks for Node (TypeScript, JavaScript) repositories. This runs tests, and for repos with
+# `format` and `format:check` scripts, applies prettier auto-fixes (pushing them back to the PR
+# branch when possible).
 
 # Customization:
 # - all customization should be available via inputs. If anything isn't available, try to add it to this as an input instead of copying and modifying directly
@@ -64,8 +66,8 @@ on:
         description: "Keys to use when decrypting optional ironhide files."
         required: false
       WORKFLOW_PAT:
-        description: "GitHub PAT to use when checking out an earlier version of the branch for coverage."
-        required: true
+        description: "GitHub PAT used to check out sql-smelter when smelter_required is true, to check out an earlier version of the branch for coverage, and to push prettier auto-fix commits back to PR branches. If absent, coverage is skipped and formatting falls back to check-only mode."
+        required: false
 
 jobs:
   test:
@@ -74,6 +76,7 @@ jobs:
     env:
       NODE_OPTIONS: ${{ inputs.node_options }}
       UNDER_TEST_FOLDER: typescript-repo
+      HAS_WORKFLOW_PAT: ${{ secrets.WORKFLOW_PAT != '' }}
     strategy:
       matrix:
         node_version: "${{ fromJSON(inputs.test_matrix_node_version) }}"
@@ -121,7 +124,7 @@ jobs:
       - name: Run tests
         run: yarn run test
       - name: Check test coverage
-        if: ${{ inputs.run_coverage && github.base_ref != '' }}
+        if: ${{ inputs.run_coverage && github.base_ref != '' && env.HAS_WORKFLOW_PAT == 'true' }}
         uses: joshuali925/Jest-Coverage-Diff@custom-directory
         with:
           fullCoverageDiff: false
@@ -133,3 +136,105 @@ jobs:
         if: ${{ inputs.additional_steps != '' }}
         shell: bash
         run: ${{ join(inputs.additional_steps, '; ') }}
+
+  # Repos opt out by omitting either script; a separate job lets them skip the install.
+  detect-format:
+    runs-on: ubuntu-24.04
+    if: github.event_name != 'issue_comment'
+    outputs:
+      present: ${{ steps.check.outputs.present }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          sparse-checkout: package.json
+          sparse-checkout-cone-mode: false
+      - name: Look for prettier scripts
+        id: check
+        run: |
+          if jq -e '.scripts.format and .scripts["format:check"]' package.json > /dev/null 2>&1; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping prettier formatting: package.json needs both a 'format' and a 'format:check' script."
+          fi
+
+  # Not folded into `test`: that job is matrixed over node versions, so an auto-fix step there
+  # would race itself on push.
+  format:
+    runs-on: ubuntu-24.04
+    needs: detect-format
+    if: needs.detect-format.outputs.present == 'true'
+    env:
+      NODE_OPTIONS: ${{ inputs.node_options }}
+      UNDER_TEST_FOLDER: typescript-repo
+    steps:
+      - name: Determine if auto-fix push is possible
+        id: push_mode
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          IS_FORK: ${{ github.event.pull_request.head.repo.fork }}
+          HAS_PAT: ${{ secrets.WORKFLOW_PAT != '' }}
+        # On fork PRs, head_ref names a branch in the fork.
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ] && [ "$HAS_PAT" = "true" ] && [ "$IS_FORK" != "true" ]; then
+            echo "can_push=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "can_push=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v7
+        with:
+          path: ${{ env.UNDER_TEST_FOLDER }}
+          # The branch tip rather than the merge ref, so the auto-fix commit can be pushed back.
+          ref: ${{ steps.push_mode.outputs.can_push == 'true' && github.head_ref || '' }}
+          token: ${{ steps.push_mode.outputs.can_push == 'true' && secrets.WORKFLOW_PAT || github.token }}
+      - name: Set yarn mode
+        if: ${{ inputs.modern_yarn }}
+        run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ fromJSON(inputs.test_matrix_node_version)[0] }}
+          cache: yarn
+          cache-dependency-path: ${{ env.UNDER_TEST_FOLDER }}/yarn.lock
+      - name: Install additional dependencies
+        if: ${{ inputs.additional_system_deps != '' }}
+        run: |
+          sudo apt update
+          sudo apt install ${{ inputs.additional_system_deps }}
+      - name: Install modules
+        run: yarn
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
+      - name: Apply prettier auto-fixes
+        if: steps.push_mode.outputs.can_push == 'true'
+        id: autofix
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
+        run: |
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            git status --porcelain --untracked-files=no
+            echo "::error::Installing modules modified the tracked files above. Run 'yarn' locally and commit the result."
+            exit 1
+          fi
+          yarn format
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Commit and push auto-fixes, then fail
+        if: steps.autofix.outputs.changed == 'true'
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        # Fails after the push so the unformatted commit is flagged.
+        run: |
+          git config user.email ops@ironcorelabs.com
+          git config user.name "Leeroy Travis"
+          git add -u
+          git -c core.hooksPath=/dev/null commit -m "Apply prettier auto-fixes"
+          git -c core.hooksPath=/dev/null push origin "HEAD:$HEAD_REF"
+          echo "::error::prettier auto-fixes were applied and pushed. CI will re-run on the new commit. Failing this run so the unformatted commit is visibly flagged."
+          exit 1
+      - name: Check prettier
+        if: steps.push_mode.outputs.can_push != 'true'
+        working-directory: ${{ env.UNDER_TEST_FOLDER }}
+        run: yarn format:check || { echo "::error::Formatting check failed. Run 'yarn format' locally and commit the result."; exit 1; }
