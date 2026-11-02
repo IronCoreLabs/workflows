@@ -141,7 +141,7 @@ jobs:
         if: env.SCCACHE_AWS_SECRET != ''
         run: |
           echo "CC=$(which cc)" >> $GITHUB_ENV
-          echo "RUSTC_WRAPPER=$HOME/.cargo/bin/sccache" >> $GITHUB_ENV
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
           echo "AWS_ACCESS_KEY_ID=${{ vars.SCCACHE_AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=${{ env.SCCACHE_AWS_SECRET }}" >> $GITHUB_ENV
           echo "SCCACHE_BUCKET=sccache-rust" >> $GITHUB_ENV
@@ -207,7 +207,7 @@ jobs:
         if: env.SCCACHE_AWS_SECRET != ''
         run: |
           echo "CC=$(which cc)" >> $GITHUB_ENV
-          echo "RUSTC_WRAPPER=$HOME/.cargo/bin/sccache" >> $GITHUB_ENV
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
           echo "AWS_ACCESS_KEY_ID=${{ vars.SCCACHE_AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=${{ env.SCCACHE_AWS_SECRET }}" >> $GITHUB_ENV
           echo "SCCACHE_BUCKET=sccache-rust" >> $GITHUB_ENV
